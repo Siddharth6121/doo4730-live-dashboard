@@ -1,0 +1,7 @@
+streamlit>=1.30
+influxdb3-python==0.20.0
+pandas>=2.0
+pyarrow>=14
+matplotlib>=3.7
+python-dotenv>=1.0
+numpy>=1.24
