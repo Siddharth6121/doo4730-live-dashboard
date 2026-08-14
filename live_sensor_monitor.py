@@ -51,7 +51,7 @@ def get_influx():
 
 
 def fetch_sensor(client, minutes):
-    q = (f"SELECT time, {','.join(CUR)} FROM sensor_telemetry WHERE device_id='DOO4730' "
+    q = (f"SELECT time, {','.join(CUR)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
          f"AND time > now() - INTERVAL '{minutes} minutes' ORDER BY time ASC")
     df = client.query(q, language="sql").to_pandas()
     if not len(df):
@@ -67,12 +67,52 @@ def fetch_sensor(client, minutes):
 
 
 def fetch_status(client, minutes):
-    q = (f"SELECT time, run_status FROM telemetry_raw WHERE device_id='DOO4730' "
+    q = (f"SELECT time, run_status FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=2 "
          f"AND time > now() - INTERVAL '{minutes} minutes' ORDER BY time ASC")
     df = client.query(q, language="sql").to_pandas()
     if len(df):
         df["time"] = pd.to_datetime(df["time"]).dt.tz_localize(None)
     return df
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def today_summary(_client):
+    """Cheap daily rollup since 00:00 UTC. Uses the sparse status stream + tiny sensor checks
+    (never a full-day 1 Hz pull, which would hit the file-scan limit). Cached for 2 minutes."""
+    now = pd.Timestamp.utcnow().tz_localize(None)
+    mins = int((now - now.normalize()).total_seconds() // 60) + 2   # minutes since 00:00 UTC
+    out = {"failures": 0, "last": None, "stoppages": 0, "parts": 0}
+    try:
+        sta = _client.query(
+            f"SELECT time, run_status, part_count FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=2 "
+            f"AND time > now() - INTERVAL '{mins} minutes' ORDER BY time ASC", language="sql").to_pandas()
+    except Exception:
+        return out
+    if not len(sta):
+        return out
+    sta["time"] = pd.to_datetime(sta["time"]).dt.tz_localize(None)
+    abn = sta[sta["run_status"].isin(ABNORMAL)]
+    out["stoppages"] = int(len(abn))
+    pc = sta["part_count"].dropna()
+    out["parts"] = int(pc.max() - pc.min()) if len(pc) > 1 else 0
+    fails = []
+    for t in abn["time"]:                                            # confirm each stoppage with a tiny sensor window
+        a = (t - pd.Timedelta(seconds=40)).strftime("%Y-%m-%d %H:%M:%S")
+        b = (t + pd.Timedelta(seconds=35)).strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            w = _client.query(
+                f"SELECT time,{','.join(CUR)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
+                f"AND time > TIMESTAMP '{a}' AND time < TIMESTAMP '{b}' ORDER BY time ASC",
+                language="sql").to_pandas()
+        except Exception:
+            continue
+        if len(w) > 2:
+            mc = w[CUR].max(axis=1)
+            if ((mc - mc.shift(2)) > ALARM).any():
+                fails.append(t)
+    out["failures"] = len(fails)
+    out["last"] = str(max(fails))[:19] if fails else None
+    return out
 
 
 client = get_influx()
@@ -135,6 +175,17 @@ c4.metric("Tier-1 surges (watch)", n_watch)
 c5.metric("Tier-2 CONFIRMED", n_conf)
 st.caption(f"🕒 LIVE · latest sensor reading **{str(t_end)[:19]} UTC** · now {str(now_utc)[:19]} UTC · "
            f"sampling ≈ {sen['time'].diff().dt.total_seconds().median():.2f}s · look-back {lookback} min")
+
+# ---- today (since 00:00 UTC) rollup ----
+d = today_summary(client)
+st.markdown("**📅 Today — since 00:00 UTC** (full-day record)")
+d1, d2, d3, d4 = st.columns(4)
+d1.metric("Confirmed failures today", d["failures"])
+d2.metric("Last failure", d["last"] or "—")
+d3.metric("Machine stoppages today", d["stoppages"])
+d4.metric("Parts made today", d["parts"])
+st.caption("Live row above = last 20 min (moving window) · Today row = cumulative since midnight UTC, "
+           "refreshed every ~2 min.")
 
 # ---- banner ----
 if recent_conf or (recent_abn and (sen['flag_surge'].tail(30).any())) or (hb_now and recent_abn):
