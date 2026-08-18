@@ -53,7 +53,10 @@ def get_influx():
 def fetch_sensor(client, minutes):
     q = (f"SELECT time, {','.join(CUR)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
          f"AND time > now() - INTERVAL '{minutes} minutes' ORDER BY time ASC")
-    df = client.query(q, language="sql").to_pandas()
+    try:
+        df = client.query(q, language="sql").to_pandas()
+    except Exception:
+        return None   # transient query error (e.g. file-scan limit) -> caller retries, no crash
     if not len(df):
         return df
     df["time"] = pd.to_datetime(df["time"]).dt.tz_localize(None)
@@ -69,8 +72,11 @@ def fetch_sensor(client, minutes):
 def fetch_status(client, minutes):
     q = (f"SELECT time, run_status FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=2 "
          f"AND time > now() - INTERVAL '{minutes} minutes' ORDER BY time ASC")
-    df = client.query(q, language="sql").to_pandas()
-    if len(df):
+    try:
+        df = client.query(q, language="sql").to_pandas()
+    except Exception:
+        return None
+    if df is not None and len(df):
         df["time"] = pd.to_datetime(df["time"]).dt.tz_localize(None)
     return df
 
@@ -121,7 +127,7 @@ ss.setdefault("running", True)
 
 st.sidebar.header("Controls")
 ss.running = st.sidebar.toggle("▶  Live (auto-refresh)", value=ss.running)
-lookback = st.sidebar.slider("Fetch look-back (minutes)", 5, 60, 20)
+lookback = st.sidebar.slider("Fetch look-back (minutes)", 5, 60, 10)
 st.sidebar.markdown("---")
 st.sidebar.caption("Two-tier detector. Tier 1 = current surge (watch, ~149/day). "
                    "Tier 2 = surge **+ machine stoppage** or sensor dropout (real failure, ~0.5/day). "
