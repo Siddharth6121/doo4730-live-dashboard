@@ -168,8 +168,12 @@ def cycle_profile(_client, s_iso, e_iso, N=90):
 
 @st.cache_data(ttl=300, show_spinner="Building cycle history…")
 def worm_data(_client, days=1, cap=80):
-    """Overlay of cycles over the last `days`: normal band + median and failure cycles, current & vibration."""
-    mins = int(days) * 1440 + 2
+    """Overlay of cycles over a window (days=int → rolling N days; days='Today' → since 00:00 UTC)."""
+    if days == "Today":
+        now = pd.Timestamp.utcnow().tz_localize(None)
+        mins = int((now - now.normalize()).total_seconds() // 60) + 2
+    else:
+        mins = int(days) * 1440 + 2
     try:
         sta = _client.query(
             f"SELECT time, run_status, part_count FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=2 "
@@ -192,15 +196,18 @@ def worm_data(_client, days=1, cap=80):
         b = (tt + pd.Timedelta(seconds=35)).strftime("%Y-%m-%d %H:%M:%S")
         try:
             wv = _client.query(
-                f"SELECT time,{','.join(CUR)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
+                f"SELECT time,{','.join(CUR + PK)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
                 f"AND time > TIMESTAMP '{a}' AND time < TIMESTAMP '{b}' ORDER BY time ASC", language="sql").to_pandas()
         except Exception:
             continue
         if len(wv) > 2:
+            wv["time"] = pd.to_datetime(wv["time"]).dt.tz_localize(None)
             mc = wv[CUR].max(axis=1)
             if ((mc - mc.shift(2)) > ALARM).any():
-                fails.append((tt, float(mc.max())))
-    ftimes = [t for t, _ in fails]
+                j = (wv["time"] - tt).abs().idxmin()          # vibration at the failure instant
+                vib_at = float(wv.loc[j, PK].max())
+                fails.append((tt, float(mc.max()), vib_at))
+    ftimes = [t for t, _p, _v in fails]
     normal_cyc = [(s, e) for (s, e) in cyc if not any(s <= ft <= e for ft in ftimes)]
     if len(normal_cyc) > cap:                                   # sample evenly to keep it fast
         idx = sorted(set(np.linspace(0, len(normal_cyc) - 1, cap).round().astype(int)))
@@ -211,7 +218,7 @@ def worm_data(_client, days=1, cap=80):
         if p is not None:
             ncur.append(p["cur"]); nvib.append(p["vib"])
     failprofs = []
-    for ft, _pk in fails:
+    for ft, _pk, _vb in fails:
         before = [t for t in inc if t <= ft]
         s0 = before[-1] if before else ft - pd.Timedelta(seconds=mdur * 0.7)
         e0 = s0 + pd.Timedelta(seconds=mdur)
@@ -373,8 +380,9 @@ with tab_live:
 
 with tab_worm:
     cwa, _cwb = st.columns([1, 3])
-    days = cwa.selectbox("History window", [1, 3, 7, 14],
-                         format_func=lambda x: f"last {x} day" + ("s" if x > 1 else ""), key="wormdays")
+    days = cwa.selectbox("History window", ["Today", 1, 3, 7, 14],
+                         format_func=lambda x: "Today (since 00:00 UTC)" if x == "Today"
+                         else f"last {x} day" + ("s" if x > 1 else ""), key="wormdays")
     st.caption("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
                "black median; a failure cycle is drawn in **red**. Toggle **Current / Vibration** via the legend.")
     W = None
@@ -416,9 +424,10 @@ with tab_worm:
             fig2.add_trace(go.Scatter(x=xa, y=list(vibp), line=dict(color="#e08a00", width=2, dash="dash"),
                           legendgroup="Vibration", showlegend=False, name=f"FAILURE vib {lbl[11:]}",
                           yaxis="y2", visible="legendonly"))
+        wlabel = "today" if days == "Today" else f"last {days}d"
         fig2.update_layout(
             template="plotly_white", height=450, margin=dict(t=56, b=10, l=10, r=10),
-            title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · last {days}d) — {len(W['ncur'])} normal · {len(W['failprofs'])} failure",
+            title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {len(W['failprofs'])} failure",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
             xaxis=dict(title="% through the production cycle", range=[0, 100], gridcolor="#eef3f5"),
@@ -431,10 +440,10 @@ with tab_worm:
     st.markdown("**🚨 Failures detected in this window**")
     if W and W["fails"]:
         ftab = pd.DataFrame([{"Time (UTC)": str(t)[:19], "Peak current (A)": round(p, 0),
-                              "Type": "surge + stoppage"} for t, p in W["fails"]])
+                              "Vibration (pk-pk)": round(v, 1)} for t, p, v in W["fails"]])
         st.dataframe(ftab, use_container_width=True, hide_index=True)
         st.selectbox("Inspect a specific failure episode (highlights it in red above)",
-                     [str(t)[:19] for t, _ in W["fails"]], key="failsel")
+                     [str(t)[:19] for t, _p, _v in W["fails"]], key="failsel")
     else:
         st.caption("No confirmed failures in this window. Any detected failure will appear here and as a red cycle above.")
 
