@@ -403,10 +403,10 @@ with tab_worm:
             fig2.add_trace(go.Scatter(x=xa, y=list(p), line=dict(color=RED, width=4 if hot else 3),
                           name=f"FAILURE {lbl[11:]}"))
         fig2.update_layout(
-            template="plotly_white", height=430, margin=dict(t=46, b=10, l=10, r=10),
+            template="plotly_white", height=440, margin=dict(t=56, b=10, l=10, r=10),
             title=dict(text=f"Today's cycles overlaid — {len(W['normals'])} normal · {len(W['failprofs'])} failure",
-                       font=dict(size=15, color=DARK)),
-            legend=dict(orientation="h", y=1.14, x=0),
+                       font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
+            legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=10)),
             xaxis=dict(title="% through the production cycle", range=[0, 100], gridcolor="#eef3f5"),
             yaxis=dict(title="spindle current (A)", range=[0, 190], gridcolor="#eef3f5"))
         st.plotly_chart(fig2, use_container_width=True, config={"displaylogo": False}, key="wormchart")
