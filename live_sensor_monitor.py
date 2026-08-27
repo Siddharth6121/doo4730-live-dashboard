@@ -411,6 +411,10 @@ with tab_worm:
             for i, p in enumerate(W["ncur"]):
                 fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines", line=dict(color="rgba(91,143,181,0.5)", width=1.2),
                               legendgroup="Current", name="Current", showlegend=(i == 0), hoverinfo="skip"))
+        if W["ncur"]:                                          # newest cycle stands out as a teal dotted line
+            fig2.add_trace(go.Scatter(x=xa, y=list(W["ncur"][-1]), mode="lines",
+                          line=dict(color="#2F8FB3", width=2.6, dash="dot"),
+                          legendgroup="Current", name="latest cycle"))
         # ---- vibration group (hidden until toggled on) ----
         if len(W["nvib"]) >= 3:
             Vv = np.array(W["nvib"]); vp10 = np.percentile(Vv, 10, axis=0); vp90 = np.percentile(Vv, 90, axis=0); vmed = np.median(Vv, axis=0)
