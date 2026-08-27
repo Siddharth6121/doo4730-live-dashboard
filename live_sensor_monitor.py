@@ -345,9 +345,10 @@ with tab_live:
             fig.add_annotation(x=et, y=ymax, text="stoppage", showarrow=False,
                                font=dict(color=RED, size=10), textangle=-90, yanchor="top", xshift=-7)
     fig.update_layout(
-        template="plotly_white", height=440, margin=dict(t=44, b=10, l=10, r=10),
-        title=dict(text=f"Two-tier detector — live · {str(t_end)[:19]} UTC", font=dict(size=15, color=DARK)),
-        legend=dict(orientation="h", y=1.12, x=0, bgcolor="rgba(0,0,0,0)"),
+        template="plotly_white", height=450, margin=dict(t=56, b=10, l=10, r=10),
+        title=dict(text=f"Two-tier detector — live · {str(t_end)[:19]} UTC", font=dict(size=15, color=DARK),
+                   x=0, xanchor="left", y=0.97, yanchor="top"),
+        legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11)),
         xaxis=dict(title="time (UTC)", showgrid=True, gridcolor="#eef3f5"),
         yaxis=dict(title="current (A)", range=[0, ymax], showgrid=True, gridcolor="#eef3f5"),
         yaxis2=dict(title="vibration (pk-pk)", overlaying="y", side="right", range=[0, 35], showgrid=False),
