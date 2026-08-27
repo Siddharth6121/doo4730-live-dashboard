@@ -421,8 +421,11 @@ with tab_worm:
             fig2.add_trace(go.Scatter(x=xa + xa[::-1], y=list(vp90) + list(vp10[::-1]), fill="toself",
                           fillcolor="rgba(44,160,72,0.16)", line=dict(width=0), legendgroup="Vibration",
                           showlegend=False, hoverinfo="skip", yaxis="y2", visible="legendonly"))
-            fig2.add_trace(go.Scatter(x=xa, y=list(vmed), line=dict(color=GREEN, width=2.2, dash="dot"),
+            fig2.add_trace(go.Scatter(x=xa, y=list(vmed), line=dict(color="#166b32", width=2.6),
                           legendgroup="Vibration", name="Vibration", yaxis="y2", visible="legendonly"))
+            fig2.add_trace(go.Scatter(x=xa, y=list(W["nvib"][-1]), line=dict(color="#2ca048", width=2.4, dash="dot"),
+                          legendgroup="Vibration", name="latest cycle (vib)", showlegend=False,
+                          yaxis="y2", visible="legendonly"))
         sel = st.session_state.get("failsel")
         for lbl, curp, vibp in W["failprofs"]:
             hot = (sel == lbl)
