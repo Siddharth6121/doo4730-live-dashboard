@@ -24,20 +24,25 @@ TEAL = "#2F8FB3"; DARK = "#161C22"; AMBER = "#e0a030"; RED = "#cf4040"; GREEN = 
 st.markdown("""
 <style>
 :root { --teal:#2F8FB3; }
-.block-container { padding-top: 1.4rem; }
-h1, h2, h3 { letter-spacing:.2px; }
+.block-container { padding-top: 0.7rem; padding-bottom: 0.4rem; max-width: 100%; }
+div[data-testid="stVerticalBlock"]{ gap: 0.42rem; }
+h1,h2,h3{ letter-spacing:.2px; }
 div[data-testid="stMetric"]{
-  background: linear-gradient(180deg,#ffffff,#f5f9fb);
-  border:1px solid #e3edf2; border-left:4px solid var(--teal);
-  border-radius:12px; padding:12px 16px; box-shadow:0 1px 3px rgba(20,28,34,.05);
+  background: linear-gradient(180deg,#ffffff,#f4f9fb);
+  border:1px solid #e3edf2; border-left:3px solid var(--teal);
+  border-radius:10px; padding:8px 12px; box-shadow:0 1px 2px rgba(20,28,34,.05);
 }
-div[data-testid="stMetricLabel"] p{ color:#54606A; font-weight:600; font-size:.82rem; }
-div[data-testid="stMetricValue"]{ color:#161C22; font-weight:700; }
+div[data-testid="stMetricLabel"] p{ color:#54606A; font-weight:600; font-size:.72rem; }
+div[data-testid="stMetricValue"]{ color:#161C22; font-weight:700; font-size:1.12rem; }
 .hero{ background:linear-gradient(90deg,#2F8FB3,#246b86); color:#fff;
-  border-radius:14px; padding:16px 22px; margin-bottom:14px; }
-.hero h1{ margin:0; font-size:1.5rem; color:#fff; }
-.hero p{ margin:2px 0 0; color:#dbeef5; font-size:.9rem; }
-.stAlert{ border-radius:12px; }
+  border-radius:12px; padding:11px 20px; margin-bottom:6px; }
+.hero h1{ margin:0; font-size:1.32rem; color:#fff; }
+.hero p{ margin:1px 0 0; color:#dbeef5; font-size:.85rem; }
+.statuspill{ border-radius:10px; padding:7px 14px; font-weight:600; margin:2px 0;
+  font-size:.92rem; display:flex; justify-content:space-between; align-items:center; }
+.statuspill .ts{ color:#54606A; font-weight:400; font-size:.78rem; }
+.stTabs [data-baseweb="tab-list"]{ gap:6px; }
+.stTabs [data-baseweb="tab"]{ padding:4px 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -278,36 +283,33 @@ if sta is not None and len(sta):
     s_ok = sta.dropna(subset=["run_status"])
     if len(s_ok): state_now = str(s_ok["run_status"].iloc[-1])
 
-# Live metrics
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("InfluxDB", "🟢 Connected")
-c2.metric("Live current", f"{end_row['max_current']:.0f} A")
-c3.metric("Machine state", state_now)
-c4.metric("Tier-1 surges (watch)", n_watch)
-c5.metric("Tier-2 CONFIRMED", n_conf)
-st.caption(f"🕒 LIVE · latest sensor reading **{str(t_end)[:19]} UTC** · now {str(now_utc)[:19]} UTC · "
-           f"sampling ≈ {sen['time'].diff().dt.total_seconds().median():.2f}s · look-back {lookback} min")
-
-# Today's rollup
 d = today_summary(client)
-st.markdown("**📅 Today — since 00:00 UTC** (full-day record)")
-d1, d2, d3, d4 = st.columns(4)
-d1.metric("Confirmed failures today", d["failures"])
-d2.metric("Last failure", d["last"] or "—")
-d3.metric("Machine stoppages today", d["stoppages"])
-d4.metric("Parts made today", d["parts"])
-st.caption("Live row above = last 20 min (moving window) · Today row = cumulative since midnight UTC, "
-           "refreshed every ~2 min.")
 
-# Status banner
+# ---- slim status pill (colour by live state) ----
 if recent_conf or (recent_abn and (sen['flag_surge'].tail(30).any())) or (hb_now and recent_abn):
-    st.error("🚨  CONFIRMED FAILURE — current surge coincided with a machine stoppage")
+    stxt, scol = "🚨  CONFIRMED FAILURE — current surge coincided with a machine stoppage", "#cf4040"
 elif recent_abn:
-    st.warning(f"⚠️  Machine stoppage ({state_now}) — watching for a coincident surge")
+    stxt, scol = f"⚠️  Machine stoppage ({state_now}) — watching for a coincident surge", "#c9821a"
 elif sen["flag_surge"].tail(15).any():
-    st.info("● Surge detected — normal cutting (Tier-1 watch, not an alarm)")
+    stxt, scol = "●  Surge detected — normal cutting (Tier-1 watch, not an alarm)", "#2f8fb3"
 else:
-    st.success("✓  Normal operation")
+    stxt, scol = "✓  Normal operation", "#2ca048"
+
+# ---- one compact KPI strip (live + today together) ----
+m = st.columns(7)
+m[0].metric("Live current", f"{end_row['max_current']:.0f} A")
+m[1].metric("Machine state", state_now)
+m[2].metric("Tier-1 (watch)", n_watch)
+m[3].metric("Tier-2 (alarm)", n_conf)
+m[4].metric("Failures today", d["failures"])
+m[5].metric("Last failure", (str(d["last"])[5:16] if d["last"] else "—"))
+m[6].metric("Parts today", d["parts"])
+
+st.markdown(
+    f'<div class="statuspill" style="background:{scol}1a;border-left:4px solid {scol};color:{scol}">'
+    f'<span>{stxt}</span><span class="ts">latest {str(t_end)[11:19]} · now {str(now_utc)[11:19]} UTC · '
+    f'~{sen["time"].diff().dt.total_seconds().median():.1f}s · today since 00:00 UTC</span></div>',
+    unsafe_allow_html=True)
 
 tab_live, tab_worm = st.tabs(["📈  Live signal", "🔁  Today's cycles (worm)"])
 
@@ -352,7 +354,7 @@ with tab_live:
             fig.add_annotation(x=et, y=ymax, text="stoppage", showarrow=False,
                                font=dict(color=RED, size=10), textangle=-90, yanchor="top", xshift=-7)
     fig.update_layout(
-        template="plotly_white", height=450, margin=dict(t=56, b=10, l=10, r=10),
+        template="plotly_white", height=400, margin=dict(t=50, b=10, l=10, r=10),
         title=dict(text=f"Two-tier detector — live · {str(t_end)[:19]} UTC", font=dict(size=15, color=DARK),
                    x=0, xanchor="left", y=0.97, yanchor="top"),
         legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11)),
@@ -426,7 +428,7 @@ with tab_worm:
                           yaxis="y2", visible="legendonly"))
         wlabel = "today" if days == "Today" else f"last {days}d"
         fig2.update_layout(
-            template="plotly_white", height=450, margin=dict(t=56, b=10, l=10, r=10),
+            template="plotly_white", height=400, margin=dict(t=50, b=10, l=10, r=10),
             title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {len(W['failprofs'])} failure",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
