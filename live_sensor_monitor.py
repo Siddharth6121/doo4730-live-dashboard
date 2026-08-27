@@ -24,7 +24,7 @@ TEAL = "#2F8FB3"; DARK = "#161C22"; AMBER = "#e0a030"; RED = "#cf4040"; GREEN = 
 st.markdown("""
 <style>
 :root { --teal:#2F8FB3; }
-.block-container { padding-top: 0.7rem; padding-bottom: 0.4rem; max-width: 100%; }
+.block-container { padding-top: 3.4rem; padding-bottom: 0.4rem; max-width: 100%; }
 div[data-testid="stVerticalBlock"]{ gap: 0.42rem; }
 h1,h2,h3{ letter-spacing:.2px; }
 div[data-testid="stMetric"]{
