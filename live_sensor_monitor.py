@@ -145,10 +145,10 @@ def today_summary(_client):
 
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
 def cycle_profile(_client, s_iso, e_iso, N=90):
-    """Normalized (0-100% of cycle), lightly smoothed spindle-current profile for one cycle."""
+    """Normalized (0-100% of cycle), smoothed current + vibration profiles for one cycle."""
     try:
         d = _client.query(
-            f"SELECT time,{','.join(CUR)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
+            f"SELECT time,{','.join(CUR + PK)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
             f"AND time > TIMESTAMP '{s_iso}' AND time < TIMESTAMP '{e_iso}' ORDER BY time ASC",
             language="sql").to_pandas()
     except Exception:
@@ -156,21 +156,20 @@ def cycle_profile(_client, s_iso, e_iso, N=90):
     if len(d) < 15:
         return None
     d["time"] = pd.to_datetime(d["time"]).dt.tz_localize(None)
-    mc = d[CUR].max(axis=1).values
     t = (d["time"] - d["time"].iloc[0]).dt.total_seconds().values
     if t[-1] <= 0:
         return None
-    prof = np.interp(np.linspace(0, 1, N), t / t[-1], mc)
-    k = 7
-    prof = np.convolve(np.pad(prof, (k, k), mode="edge"), np.ones(k) / k, mode="same")[k:-k]
-    return prof.tolist()
+    xp = np.linspace(0, 1, N); k = 7; ker = np.ones(k) / k
+    def norm(vals):
+        p = np.interp(xp, t / t[-1], vals)
+        return np.convolve(np.pad(p, (k, k), mode="edge"), ker, mode="same")[k:-k].tolist()
+    return {"cur": norm(d[CUR].max(axis=1).values), "vib": norm(d[PK].max(axis=1).values)}
 
 
-@st.cache_data(ttl=90, show_spinner=False)
-def todays_worm(_client, cap=45):
-    """Overlay of today's completed cycles: normal band + median, plus each failure cycle in red."""
-    now = pd.Timestamp.utcnow().tz_localize(None)
-    mins = int((now - now.normalize()).total_seconds() // 60) + 2
+@st.cache_data(ttl=300, show_spinner="Building cycle history…")
+def worm_data(_client, days=1, cap=80):
+    """Overlay of cycles over the last `days`: normal band + median and failure cycles, current & vibration."""
+    mins = int(days) * 1440 + 2
     try:
         sta = _client.query(
             f"SELECT time, run_status, part_count FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=2 "
@@ -185,8 +184,8 @@ def todays_worm(_client, cap=45):
     cyc = [(inc[i - 1], inc[i]) for i in range(1, len(inc)) if 250 <= (inc[i] - inc[i - 1]).total_seconds() <= 900]
     durs = [(e - s).total_seconds() for s, e in cyc]
     mdur = float(np.median(durs)) if durs else 431.0
-    # failures today = a stoppage confirmed by a nearby current surge
-    abn = sta[sta["run_status"].isin(ABNORMAL)]["time"].tolist()
+    # failures = a stoppage confirmed by a nearby surge (cap recent to bound query volume)
+    abn = sta[sta["run_status"].isin(ABNORMAL)]["time"].tolist()[-60:]
     fails = []
     for tt in abn:
         a = (tt - pd.Timedelta(seconds=40)).strftime("%Y-%m-%d %H:%M:%S")
@@ -202,13 +201,15 @@ def todays_worm(_client, cap=45):
             if ((mc - mc.shift(2)) > ALARM).any():
                 fails.append((tt, float(mc.max())))
     ftimes = [t for t, _ in fails]
-    normals = []
-    for (s, e) in cyc[-cap:]:
-        if any(s <= ft <= e for ft in ftimes):
-            continue
+    normal_cyc = [(s, e) for (s, e) in cyc if not any(s <= ft <= e for ft in ftimes)]
+    if len(normal_cyc) > cap:                                   # sample evenly to keep it fast
+        idx = sorted(set(np.linspace(0, len(normal_cyc) - 1, cap).round().astype(int)))
+        normal_cyc = [normal_cyc[i] for i in idx]
+    ncur = []; nvib = []
+    for (s, e) in normal_cyc:
         p = cycle_profile(_client, s.strftime("%Y-%m-%d %H:%M:%S"), e.strftime("%Y-%m-%d %H:%M:%S"))
         if p is not None:
-            normals.append(p)
+            ncur.append(p["cur"]); nvib.append(p["vib"])
     failprofs = []
     for ft, _pk in fails:
         before = [t for t in inc if t <= ft]
@@ -216,8 +217,8 @@ def todays_worm(_client, cap=45):
         e0 = s0 + pd.Timedelta(seconds=mdur)
         p = cycle_profile(_client, s0.strftime("%Y-%m-%d %H:%M:%S"), e0.strftime("%Y-%m-%d %H:%M:%S"))
         if p is not None:
-            failprofs.append((str(ft)[:19], p))
-    return {"normals": normals, "failprofs": failprofs, "fails": fails, "ncyc": len(cyc)}
+            failprofs.append((str(ft)[:19], p["cur"], p["vib"]))
+    return {"ncur": ncur, "nvib": nvib, "failprofs": failprofs, "fails": fails, "ncyc": len(cyc)}
 
 
 client = get_influx()
@@ -370,50 +371,63 @@ with tab_live:
         )
 
 with tab_worm:
-    st.caption("Every completed part-cycle today is overlaid on a 0–100% cycle axis. Normal cycles build the "
-               "grey band + black median; a failure cycle is drawn in **red** where it deviates. It grows as parts are made.")
+    cwa, _cwb = st.columns([1, 3])
+    days = cwa.selectbox("History window", [1, 3, 7, 14],
+                         format_func=lambda x: f"last {x} day" + ("s" if x > 1 else ""), key="wormdays")
+    st.caption("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
+               "black median; a failure cycle is drawn in **red**. Toggle **Current / Vibration** via the legend.")
     W = None
     try:
-        W = todays_worm(client)
+        W = worm_data(client, days)
     except Exception as e:
         st.warning(f"Cycle view temporarily unavailable: {e}")
-    if W and (W["normals"] or W["failprofs"]):
+    if W and (W["ncur"] or W["failprofs"]):
         xa = list(np.linspace(0, 100, 90))
         fig2 = go.Figure()
-        if len(W["normals"]) >= 3:
-            NPn = np.array(W["normals"])
-            p10 = np.percentile(NPn, 10, axis=0); p90 = np.percentile(NPn, 90, axis=0); med = np.median(NPn, axis=0)
+        # ---- current group ----
+        if len(W["ncur"]) >= 3:
+            A = np.array(W["ncur"]); p10 = np.percentile(A, 10, axis=0); p90 = np.percentile(A, 90, axis=0); med = np.median(A, axis=0)
             fig2.add_trace(go.Scatter(x=xa + xa[::-1], y=list(p90) + list(p10[::-1]), fill="toself",
-                          fillcolor="rgba(155,188,216,0.40)", line=dict(width=0),
-                          name="normal range (p10–p90)", hoverinfo="skip"))
-            for i, p in enumerate(W["normals"]):
-                fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines",
-                              line=dict(color="rgba(91,143,181,0.25)", width=1),
-                              name="normal cycle", showlegend=(i == 0), hoverinfo="skip"))
+                          fillcolor="rgba(155,188,216,0.40)", line=dict(width=0), legendgroup="Current",
+                          showlegend=False, hoverinfo="skip"))
+            for i, p in enumerate(W["ncur"]):
+                fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines", line=dict(color="rgba(91,143,181,0.22)", width=1),
+                              legendgroup="Current", name="Current", showlegend=(i == 0), hoverinfo="skip"))
             fig2.add_trace(go.Scatter(x=xa, y=list(med), line=dict(color=DARK, width=2.8),
-                          name="normal-cycle median"))
+                          legendgroup="Current", showlegend=False, name="current median"))
         else:
-            for i, p in enumerate(W["normals"]):
-                fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines",
-                              line=dict(color="rgba(91,143,181,0.5)", width=1.2),
-                              name="normal cycle", showlegend=(i == 0), hoverinfo="skip"))
+            for i, p in enumerate(W["ncur"]):
+                fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines", line=dict(color="rgba(91,143,181,0.5)", width=1.2),
+                              legendgroup="Current", name="Current", showlegend=(i == 0), hoverinfo="skip"))
+        # ---- vibration group (hidden until toggled on) ----
+        if len(W["nvib"]) >= 3:
+            Vv = np.array(W["nvib"]); vp10 = np.percentile(Vv, 10, axis=0); vp90 = np.percentile(Vv, 90, axis=0); vmed = np.median(Vv, axis=0)
+            fig2.add_trace(go.Scatter(x=xa + xa[::-1], y=list(vp90) + list(vp10[::-1]), fill="toself",
+                          fillcolor="rgba(44,160,72,0.16)", line=dict(width=0), legendgroup="Vibration",
+                          showlegend=False, hoverinfo="skip", yaxis="y2", visible="legendonly"))
+            fig2.add_trace(go.Scatter(x=xa, y=list(vmed), line=dict(color=GREEN, width=2.2, dash="dot"),
+                          legendgroup="Vibration", name="Vibration", yaxis="y2", visible="legendonly"))
         sel = st.session_state.get("failsel")
-        for lbl, p in W["failprofs"]:
+        for lbl, curp, vibp in W["failprofs"]:
             hot = (sel == lbl)
-            fig2.add_trace(go.Scatter(x=xa, y=list(p), line=dict(color=RED, width=4 if hot else 3),
-                          name=f"FAILURE {lbl[11:]}"))
+            fig2.add_trace(go.Scatter(x=xa, y=list(curp), line=dict(color=RED, width=4 if hot else 3),
+                          legendgroup="Current", showlegend=False, name=f"FAILURE {lbl[11:]}"))
+            fig2.add_trace(go.Scatter(x=xa, y=list(vibp), line=dict(color="#e08a00", width=2, dash="dash"),
+                          legendgroup="Vibration", showlegend=False, name=f"FAILURE vib {lbl[11:]}",
+                          yaxis="y2", visible="legendonly"))
         fig2.update_layout(
-            template="plotly_white", height=440, margin=dict(t=56, b=10, l=10, r=10),
-            title=dict(text=f"Today's cycles overlaid — {len(W['normals'])} normal · {len(W['failprofs'])} failure",
+            template="plotly_white", height=450, margin=dict(t=56, b=10, l=10, r=10),
+            title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · last {days}d) — {len(W['ncur'])} normal · {len(W['failprofs'])} failure",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
-            legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=10)),
+            legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
             xaxis=dict(title="% through the production cycle", range=[0, 100], gridcolor="#eef3f5"),
-            yaxis=dict(title="spindle current (A)", range=[0, 190], gridcolor="#eef3f5"))
+            yaxis=dict(title="spindle current (A)", range=[0, 190], gridcolor="#eef3f5"),
+            yaxis2=dict(title="vibration (pk-pk)", overlaying="y", side="right", range=[0, 35], showgrid=False))
         st.plotly_chart(fig2, use_container_width=True, config={"displaylogo": False}, key="wormchart")
     else:
-        st.info("Building today's cycle view… waiting for at least one completed part-cycle since 00:00 UTC.")
+        st.info("Building the cycle view… waiting for at least one completed part-cycle in the selected window.")
 
-    st.markdown("**🚨 Failures detected today**")
+    st.markdown("**🚨 Failures detected in this window**")
     if W and W["fails"]:
         ftab = pd.DataFrame([{"Time (UTC)": str(t)[:19], "Peak current (A)": round(p, 0),
                               "Type": "surge + stoppage"} for t, p in W["fails"]])
@@ -421,7 +435,7 @@ with tab_worm:
         st.selectbox("Inspect a specific failure episode (highlights it in red above)",
                      [str(t)[:19] for t, _ in W["fails"]], key="failsel")
     else:
-        st.caption("No confirmed failures today. Any detected failure will appear here and as a red cycle above.")
+        st.caption("No confirmed failures in this window. Any detected failure will appear here and as a red cycle above.")
 
 if ss.running:
     time.sleep(3)
