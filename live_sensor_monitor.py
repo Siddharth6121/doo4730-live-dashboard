@@ -384,17 +384,23 @@ with tab_worm:
             NPn = np.array(W["normals"])
             p10 = np.percentile(NPn, 10, axis=0); p90 = np.percentile(NPn, 90, axis=0); med = np.median(NPn, axis=0)
             fig2.add_trace(go.Scatter(x=xa + xa[::-1], y=list(p90) + list(p10[::-1]), fill="toself",
-                          fillcolor="rgba(120,130,140,0.20)", line=dict(width=0),
-                          name=f"normal range ({len(W['normals'])} cycles)", hoverinfo="skip"))
-            fig2.add_trace(go.Scatter(x=xa, y=list(med), line=dict(color=DARK, width=2.6), name="normal median"))
+                          fillcolor="rgba(155,188,216,0.40)", line=dict(width=0),
+                          name="normal range (p10–p90)", hoverinfo="skip"))
+            for i, p in enumerate(W["normals"]):
+                fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines",
+                              line=dict(color="rgba(91,143,181,0.25)", width=1),
+                              name="normal cycle", showlegend=(i == 0), hoverinfo="skip"))
+            fig2.add_trace(go.Scatter(x=xa, y=list(med), line=dict(color=DARK, width=2.8),
+                          name="normal-cycle median"))
         else:
-            for p in W["normals"]:
-                fig2.add_trace(go.Scatter(x=xa, y=list(p), line=dict(color="rgba(120,130,140,0.55)", width=1),
-                              showlegend=False, hoverinfo="skip"))
+            for i, p in enumerate(W["normals"]):
+                fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines",
+                              line=dict(color="rgba(91,143,181,0.5)", width=1.2),
+                              name="normal cycle", showlegend=(i == 0), hoverinfo="skip"))
         sel = st.session_state.get("failsel")
         for lbl, p in W["failprofs"]:
             hot = (sel == lbl)
-            fig2.add_trace(go.Scatter(x=xa, y=list(p), line=dict(color=RED, width=4 if hot else 2.2),
+            fig2.add_trace(go.Scatter(x=xa, y=list(p), line=dict(color=RED, width=4 if hot else 3),
                           name=f"FAILURE {lbl[11:]}"))
         fig2.update_layout(
             template="plotly_white", height=430, margin=dict(t=46, b=10, l=10, r=10),
