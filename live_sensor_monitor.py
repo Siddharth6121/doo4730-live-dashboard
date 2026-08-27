@@ -171,7 +171,7 @@ def cycle_profile(_client, s_iso, e_iso, N=90):
     return {"cur": norm(d[CUR].max(axis=1).values), "vib": norm(d[PK].max(axis=1).values)}
 
 
-@st.cache_data(ttl=300, show_spinner="Building cycle history…")
+@st.cache_data(ttl=60, show_spinner="Building cycle history…")
 def worm_data(_client, days=1, cap=80):
     """Overlay of cycles over a window (days=int → rolling N days; days='Today' → since 00:00 UTC)."""
     if days == "Today":
@@ -386,7 +386,8 @@ with tab_worm:
                          format_func=lambda x: "Today (since 00:00 UTC)" if x == "Today"
                          else f"last {x} day" + ("s" if x > 1 else ""), key="wormdays")
     st.caption("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
-               "black median; a failure cycle is drawn in **red**. Toggle **Current / Vibration** via the legend.")
+               "black median; a failure cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
+               "Updates live — a new cycle joins within ~60 s of each part finishing (~every 7 min).")
     W = None
     try:
         W = worm_data(client, days)
