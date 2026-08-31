@@ -242,10 +242,10 @@ ss.running = st.sidebar.toggle("▶  Live (auto-refresh)", value=ss.running)
 lookback = st.sidebar.slider("Fetch look-back (minutes)", 5, 60, 10)
 st.sidebar.markdown("---")
 st.sidebar.caption("Two-tier detector. Tier 1 = current surge (watch, ~149/day). "
-                   "Tier 2 = surge **+ machine stoppage** or sensor dropout (real failure, ~0.5/day). "
+                   "Tier 2 = surge **+ machine stoppage** or sensor dropout (real anomaly, ~0.5/day). "
                    "Only Tier 2 alarms.")
 
-st.markdown('<div class="hero"><h1>🟢 DOO4730 — Live Tool-Failure Detection</h1>'
+st.markdown('<div class="hero"><h1>🟢 DOO4730 — Live Tool-Anomaly Detection</h1>'
             '<p>Real-time two-tier detector · current surge confirmed by a machine stoppage</p></div>',
             unsafe_allow_html=True)
 
@@ -287,7 +287,7 @@ d = today_summary(client)
 
 # ---- slim status pill (colour by live state) ----
 if recent_conf or (recent_abn and (sen['flag_surge'].tail(30).any())) or (hb_now and recent_abn):
-    stxt, scol = "🚨  CONFIRMED FAILURE — current surge coincided with a machine stoppage", "#cf4040"
+    stxt, scol = "🚨  CONFIRMED ANOMALY — current surge coincided with a machine stoppage", "#cf4040"
 elif recent_abn:
     stxt, scol = f"⚠️  Machine stoppage ({state_now}) — watching for a coincident surge", "#c9821a"
 elif sen["flag_surge"].tail(15).any():
@@ -301,8 +301,8 @@ m[0].metric("Live current", f"{end_row['max_current']:.0f} A")
 m[1].metric("Machine state", state_now)
 m[2].metric("Tier-1 (watch)", n_watch)
 m[3].metric("Tier-2 (alarm)", n_conf)
-m[4].metric("Failures today", d["failures"])
-m[5].metric("Last failure", (str(d["last"])[5:16] if d["last"] else "—"))
+m[4].metric("Anomalies today", d["failures"])
+m[5].metric("Last anomaly", (str(d["last"])[5:16] if d["last"] else "—"))
 m[6].metric("Parts today", d["parts"])
 
 st.markdown(
@@ -346,8 +346,8 @@ with tab_live:
     if len(conf):
         fig.add_trace(go.Scatter(x=conf["time"], y=conf["max_current"], mode="markers",
                       marker=dict(color=RED, size=17, symbol="star", line=dict(color="#fff", width=1)),
-                      name="Tier-2 CONFIRMED failure",
-                      hovertemplate="CONFIRMED failure<br>%{x|%H:%M:%S} · %{y:.0f} A<extra></extra>"))
+                      name="Tier-2 CONFIRMED anomaly",
+                      hovertemplate="CONFIRMED anomaly<br>%{x|%H:%M:%S} · %{y:.0f} A<extra></extra>"))
     for et in abn_times:
         if len(w) and w["time"].min() <= et <= w["time"].max():
             fig.add_vline(x=et, line_color=RED, line_width=1.6, opacity=0.5)
@@ -371,7 +371,7 @@ with tab_live:
             f"~149×/day, so on its own it is only a **watch** item, not an alarm.\n"
             f"- **Red star (Tier 2)** — a surge that **coincided with the machine stopping** "
             f"(INTERRUPTED/DISCONNECTED within {CONFIRM_S}s) or the sensor feed going silent. "
-            f"This is the real failure signal (~0.5×/day) and is the only thing that raises the loud alert.\n"
+            f"This is the real anomaly signal (~0.5×/day) and is the only thing that raises the loud alert.\n"
             f"- **Teal line (current)** — the real, instantaneous spindle current; the sharp peaks are "
             f"genuine surges, and a surge over {ALARM:.0f} A is exactly the signal we detect.\n"
             f"- **Red vertical line** — a live machine stoppage from the status stream.\n"
@@ -386,7 +386,7 @@ with tab_worm:
                          format_func=lambda x: "Today (since 00:00 UTC)" if x == "Today"
                          else f"last {x} day" + ("s" if x > 1 else ""), key="wormdays")
     st.caption("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
-               "black median; a failure cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
+               "black median; an anomaly cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
                "Updates live — a new cycle joins within ~60 s of each part finishing (~every 7 min).")
     W = None
     try:
@@ -430,14 +430,14 @@ with tab_worm:
         for lbl, curp, vibp in W["failprofs"]:
             hot = (sel == lbl)
             fig2.add_trace(go.Scatter(x=xa, y=list(curp), line=dict(color=RED, width=4 if hot else 3),
-                          legendgroup="Current", showlegend=False, name=f"FAILURE {lbl[11:]}"))
+                          legendgroup="Current", showlegend=False, name=f"ANOMALY {lbl[11:]}"))
             fig2.add_trace(go.Scatter(x=xa, y=list(vibp), line=dict(color="#e08a00", width=2, dash="dash"),
-                          legendgroup="Vibration", showlegend=False, name=f"FAILURE vib {lbl[11:]}",
+                          legendgroup="Vibration", showlegend=False, name=f"ANOMALY vib {lbl[11:]}",
                           yaxis="y2", visible="legendonly"))
         wlabel = "today" if days == "Today" else f"last {days}d"
         fig2.update_layout(
             template="plotly_white", height=400, margin=dict(t=50, b=10, l=10, r=10),
-            title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {len(W['failprofs'])} failure",
+            title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {len(W['failprofs'])} anomaly",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
             xaxis=dict(title="% through the production cycle", range=[0, 100], gridcolor="#eef3f5"),
@@ -447,15 +447,15 @@ with tab_worm:
     else:
         st.info("Building the cycle view… waiting for at least one completed part-cycle in the selected window.")
 
-    st.markdown("**🚨 Failures detected in this window**")
+    st.markdown("**🚨 Anomalies detected in this window**")
     if W and W["fails"]:
         ftab = pd.DataFrame([{"Time (UTC)": str(t)[:19], "Peak current (A)": round(p, 0),
                               "Vibration (pk-pk)": round(v, 1)} for t, p, v in W["fails"]])
         st.dataframe(ftab, use_container_width=True, hide_index=True)
-        st.selectbox("Inspect a specific failure episode (highlights it in red above)",
+        st.selectbox("Inspect a specific anomaly episode (highlights it in red above)",
                      [str(t)[:19] for t, _p, _v in W["fails"]], key="failsel")
     else:
-        st.caption("No confirmed failures in this window. Any detected failure will appear here and as a red cycle above.")
+        st.caption("No confirmed anomalies in this window. Any detected anomaly will appear here and as a red cycle above.")
 
 if ss.running:
     time.sleep(3)
