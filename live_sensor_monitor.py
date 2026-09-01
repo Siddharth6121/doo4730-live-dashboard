@@ -25,7 +25,7 @@ st.markdown("""
 <style>
 :root { --teal:#2F8FB3; }
 .block-container { padding-top: 3.4rem; padding-bottom: 0.4rem; max-width: 100%; }
-div[data-testid="stVerticalBlock"]{ gap: 0.42rem; }
+div[data-testid="stVerticalBlock"]{ gap: 0.72rem; }
 h1,h2,h3{ letter-spacing:.2px; }
 div[data-testid="stMetric"]{
   background:#ffffff;
@@ -38,10 +38,10 @@ div[data-testid="stMetricLabel"] p{ color:#5b6a74; font-weight:600; font-size:.6
   text-transform:uppercase; letter-spacing:.05em; }
 div[data-testid="stMetricValue"]{ color:#141c22; font-weight:700; font-size:1.28rem; line-height:1.15; }
 .hero{ background:linear-gradient(90deg,#2F8FB3,#246b86); color:#fff;
-  border-radius:12px; padding:11px 20px; margin-bottom:6px; }
+  border-radius:12px; padding:13px 22px; margin-bottom:16px; }
 .hero h1{ margin:0; font-size:1.32rem; color:#fff; }
 .hero p{ margin:1px 0 0; color:#dbeef5; font-size:.85rem; }
-.statuspill{ border-radius:10px; padding:7px 14px; font-weight:600; margin:2px 0;
+.statuspill{ border-radius:10px; padding:9px 15px; font-weight:600; margin:6px 0 8px;
   font-size:.92rem; display:flex; justify-content:space-between; align-items:center; }
 .statuspill .ts{ color:#54606A; font-weight:400; font-size:.78rem; }
 .stTabs [data-baseweb="tab-list"]{ gap:6px; }
