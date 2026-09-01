@@ -384,18 +384,30 @@ with tab_live:
         )
 
 with tab_worm:
-    cwa, _cwb = st.columns([1, 3])
+    ALLOPT = "— All anomalies —"
+    W = None
+    cwa, cwb = st.columns([1, 1])
     days = cwa.selectbox("History window", ["Today", 1, 3, 7, 14],
                          format_func=lambda x: "Today (since 00:00 UTC)" if x == "Today"
                          else f"last {x} day" + ("s" if x > 1 else ""), key="wormdays")
-    st.caption("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
-               "black median; an anomaly cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
-               "Updates live — a new cycle joins within ~60 s of each part finishing (~every 7 min).")
-    W = None
     try:
         W = worm_data(client, days)
     except Exception as e:
         st.warning(f"Cycle view temporarily unavailable: {e}")
+    fail_labels = [str(t)[:19] for t, _p, _v in W["fails"]] if (W and W["fails"]) else []
+    # keep the stored selection valid across day changes (avoids a stale-value error)
+    if st.session_state.get("failsel") not in ([ALLOPT] + fail_labels):
+        st.session_state["failsel"] = ALLOPT
+    if fail_labels:
+        sel = cwb.selectbox(f"🔎 Show anomaly  ·  {len(fail_labels)} in view",
+                            [ALLOPT] + fail_labels, key="failsel",
+                            help="Pick one to show only that anomaly; keep “All” to show every anomaly in this window.")
+    else:
+        cwb.selectbox("🔎 Show anomaly", ["(none yet)"], disabled=True)
+        sel = ALLOPT
+    st.caption("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
+               "black median; an anomaly cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
+               "Updates live — a new cycle joins within ~60 s of each part finishing.")
     if W and (W["ncur"] or W["failprofs"]):
         xa = list(np.linspace(0, 100, 90))
         fig2 = go.Figure()
@@ -429,24 +441,30 @@ with tab_worm:
             fig2.add_trace(go.Scatter(x=xa, y=list(W["nvib"][-1]), line=dict(color="#2ca048", width=2.4, dash="dot"),
                           legendgroup="Vibration", name="latest cycle (vib)", showlegend=False,
                           yaxis="y2", visible="legendonly"))
-        sel = st.session_state.get("failsel")
         for lbl, curp, vibp in W["failprofs"]:
-            hot = (sel == lbl)
-            fig2.add_trace(go.Scatter(x=xa, y=list(curp), line=dict(color=RED, width=4 if hot else 3),
+            if sel != ALLOPT and sel != lbl:      # show all, or only the one selected in the dropdown
+                continue
+            fig2.add_trace(go.Scatter(x=xa, y=list(curp), line=dict(color=RED, width=3.4),
                           legendgroup="Current", showlegend=False, name=f"ANOMALY {lbl[11:]}"))
             fig2.add_trace(go.Scatter(x=xa, y=list(vibp), line=dict(color="#e08a00", width=2, dash="dash"),
                           legendgroup="Vibration", showlegend=False, name=f"ANOMALY vib {lbl[11:]}",
                           yaxis="y2", visible="legendonly"))
         wlabel = "today" if days == "Today" else f"last {days}d"
+        shown_txt = f"{len(W['failprofs'])} anomaly" if sel == ALLOPT else "1 selected anomaly"
         fig2.update_layout(
             template="plotly_white", height=400, margin=dict(t=50, b=10, l=10, r=10),
-            title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {len(W['failprofs'])} anomaly",
+            title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {shown_txt}",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
             xaxis=dict(title="% through the production cycle", range=[0, 100], gridcolor="#eef3f5"),
             yaxis=dict(title="spindle current (A)", range=[0, 190], gridcolor="#eef3f5"),
             yaxis2=dict(title="vibration (pk-pk)", overlaying="y", side="right", range=[0, 35], showgrid=False))
         st.plotly_chart(fig2, use_container_width=True, config={"displaylogo": False}, key="wormchart")
+        if fail_labels:
+            if sel == ALLOPT:
+                st.markdown(f"<div style='color:#54606A;font-size:.86rem;margin-top:-6px'>Showing <b>all {len(W['failprofs'])} anomalies</b> in this window — pick one from the <b>Show anomaly</b> dropdown (top) to isolate it.</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div style='color:#c0392b;font-size:.9rem;font-weight:600;margin-top:-6px'>Showing <b>only the selected anomaly</b> · {sel} UTC — choose “{ALLOPT}” to show all.</div>", unsafe_allow_html=True)
     else:
         st.info("Building the cycle view… waiting for at least one completed part-cycle in the selected window.")
 
@@ -455,8 +473,6 @@ with tab_worm:
         ftab = pd.DataFrame([{"Time (UTC)": str(t)[:19], "Peak current (A)": round(p, 0),
                               "Vibration (pk-pk)": round(v, 1)} for t, p, v in W["fails"]])
         st.dataframe(ftab, use_container_width=True, hide_index=True)
-        st.selectbox("Inspect a specific anomaly episode (highlights it in red above)",
-                     [str(t)[:19] for t, _p, _v in W["fails"]], key="failsel")
     else:
         st.caption("No confirmed anomalies in this window. Any detected anomaly will appear here and as a red cycle above.")
 
