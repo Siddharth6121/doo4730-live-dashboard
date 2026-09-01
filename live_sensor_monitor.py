@@ -133,8 +133,8 @@ def today_summary(_client):
     out["parts"] = int(pc.max() - pc.min()) if len(pc) > 1 else 0
     fails = []
     for t in abn["time"]:
-        a = (t - pd.Timedelta(seconds=40)).strftime("%Y-%m-%d %H:%M:%S")
-        b = (t + pd.Timedelta(seconds=35)).strftime("%Y-%m-%d %H:%M:%S")
+        a = (t - pd.Timedelta(seconds=33)).strftime("%Y-%m-%d %H:%M:%S")
+        b = (t + pd.Timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
         try:
             w = _client.query(
                 f"SELECT time,{','.join(CUR)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
@@ -200,8 +200,8 @@ def worm_data(_client, days=1, cap=80):
     abn = sta[sta["run_status"].isin(ABNORMAL)]["time"].tolist()[-60:]
     fails = []
     for tt in abn:
-        a = (tt - pd.Timedelta(seconds=40)).strftime("%Y-%m-%d %H:%M:%S")
-        b = (tt + pd.Timedelta(seconds=35)).strftime("%Y-%m-%d %H:%M:%S")
+        a = (tt - pd.Timedelta(seconds=33)).strftime("%Y-%m-%d %H:%M:%S")
+        b = (tt + pd.Timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
         try:
             wv = _client.query(
                 f"SELECT time,{','.join(CUR + PK)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
