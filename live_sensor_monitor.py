@@ -28,12 +28,15 @@ st.markdown("""
 div[data-testid="stVerticalBlock"]{ gap: 0.42rem; }
 h1,h2,h3{ letter-spacing:.2px; }
 div[data-testid="stMetric"]{
-  background: linear-gradient(180deg,#ffffff,#f4f9fb);
-  border:1px solid #e3edf2; border-left:3px solid var(--teal);
-  border-radius:10px; padding:8px 12px; box-shadow:0 1px 2px rgba(20,28,34,.05);
+  background:#ffffff;
+  border:1px solid #e5edf1; border-left:3px solid var(--teal);
+  border-radius:12px; padding:11px 15px; box-shadow:0 1px 3px rgba(20,28,34,.06);
+  min-height:78px; display:flex; flex-direction:column; justify-content:center;
 }
-div[data-testid="stMetricLabel"] p{ color:#54606A; font-weight:600; font-size:.72rem; }
-div[data-testid="stMetricValue"]{ color:#161C22; font-weight:700; font-size:1.12rem; }
+div[data-testid="stMetric"]:hover{ box-shadow:0 2px 8px rgba(20,28,34,.10); border-left-color:#246b86; }
+div[data-testid="stMetricLabel"] p{ color:#5b6a74; font-weight:600; font-size:.66rem;
+  text-transform:uppercase; letter-spacing:.05em; }
+div[data-testid="stMetricValue"]{ color:#141c22; font-weight:700; font-size:1.28rem; line-height:1.15; }
 .hero{ background:linear-gradient(90deg,#2F8FB3,#246b86); color:#fff;
   border-radius:12px; padding:11px 20px; margin-bottom:6px; }
 .hero h1{ margin:0; font-size:1.32rem; color:#fff; }
