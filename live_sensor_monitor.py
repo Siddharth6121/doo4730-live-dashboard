@@ -49,7 +49,7 @@ div[data-testid="stPlotlyChart"], div[data-testid="stDataFrame"]{
 }
 
 /* white sidebar */
-section[data-testid="stSidebar"]{ background:#ffffff; border-right:1px solid var(--line); }
+section[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"]{ display:none; }
 
 /* clean top bar with logo (matches IotiView header) */
 .topbar{ display:flex; align-items:center; gap:13px; background:#ffffff;
@@ -275,13 +275,8 @@ client = get_influx()
 ss = st.session_state
 ss.setdefault("running", True)
 
-st.sidebar.header("Controls")
-ss.running = st.sidebar.toggle("▶  Live (auto-refresh)", value=ss.running)
-lookback = st.sidebar.slider("Fetch look-back (minutes)", 5, 60, 10)
-st.sidebar.markdown("---")
-st.sidebar.caption("Two-tier detector. Tier 1 = current surge (watch, ~149/day). "
-                   "Tier 2 = surge **+ machine stoppage** or sensor dropout (real anomaly, ~0.5/day). "
-                   "Only Tier 2 alarms.")
+ss.running = True          # always live (sidebar controls removed for a cleaner look)
+lookback = 10              # fixed fetch look-back (minutes)
 
 st.markdown('<div class="topbar"><div class="logo"></div>'
             '<div><div class="title">DOO4730 — Live Tool-Anomaly Detection</div>'
@@ -331,7 +326,7 @@ if recent_conf or (recent_abn and (sen['flag_surge'].tail(30).any())) or (hb_now
 elif recent_abn:
     stxt, scol = f"⚠️  Machine stoppage ({state_now}) — watching for a coincident surge", "#c9821a"
 elif sen["flag_surge"].tail(15).any():
-    stxt, scol = "●  Surge detected — normal cutting (Tier-1 watch, not an alarm)", "#2f8fb3"
+    stxt, scol = "●  Surge detected — normal cutting (Tier-1 watch, not an alarm)", "#6b7883"
 else:
     stxt, scol = "✓  Normal operation", "#2ca048"
 
