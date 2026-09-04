@@ -67,11 +67,18 @@ section[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"]{ dis
   font-size:.92rem; display:flex; justify-content:space-between; align-items:center; }
 .statuspill .ts{ color:var(--muted); font-weight:400; font-size:.78rem; }
 .stTabs [data-baseweb="tab-list"]{ gap:6px; }
-/* info popover trigger -> small bare round "i" icon, no button chrome */
+/* the info icon floats at the tab-bar level (top-right, above the divider) */
+.stTabs [data-baseweb="tab-panel"]{ position: relative; }
+[data-testid="stPopover"]{ position:absolute; top:-40px; right:6px; z-index:6; }
 [data-testid="stPopover"] button{ border:none !important; background:transparent !important;
   box-shadow:none !important; padding:0 !important; min-height:0 !important; color:var(--teal) !important; }
 [data-testid="stPopover"] button:hover{ background:transparent !important; color:var(--teal-d) !important; }
-[data-testid="stPopover"] button p{ font-size:1.3rem !important; line-height:1; margin:0; }
+[data-testid="stPopover"] button p{ font-size:1.35rem !important; line-height:1; margin:0; }
+/* drop the caret/arrow next to the icon */
+[data-testid="stPopover"] button svg,
+[data-testid="stPopover"] button [data-testid="stIconMaterial"]{ display:none !important; }
+/* tighten selectbox label -> box gap (shorter controls section) */
+[data-testid="stWidgetLabel"]{ margin-bottom:2px !important; }
 .stTabs [data-baseweb="tab"]{ padding:4px 10px; }
 </style>
 """, unsafe_allow_html=True)
@@ -352,8 +359,7 @@ CHART_H = 560          # fixed, larger chart height
 tab_live, tab_worm = st.tabs(["📈  Live signal", "🔁  Today's cycles (worm)"])
 
 with tab_live:
-    _lc, _li = st.columns([9, 1])
-    with _li.popover("ⓘ", use_container_width=False):
+    with st.popover("ⓘ", use_container_width=False):
         st.markdown(
             f"**How the two tiers work**\n\n"
             f"- **Amber dots (Tier 1)** — the current surged over {ALARM:.0f} A. Normal cutting does this "
@@ -424,7 +430,11 @@ with tab_live:
 with tab_worm:
     ALLOPT = "— All anomalies —"
     W = None
-    cwa, cwb, cwc = st.columns([1, 1, 0.5])
+    with st.popover("ⓘ", use_container_width=False):
+        st.markdown("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
+                    "black median; an anomaly cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
+                    "Updates live — a new cycle joins within ~60 s of each part finishing.")
+    cwa, cwb = st.columns(2)
     days = cwa.selectbox("History window", ["Today", 1, 3, 7, 14],
                          format_func=lambda x: f"Today (since 00:00 {TZLABEL})" if x == "Today"
                          else f"last {x} day" + ("s" if x > 1 else ""), key="wormdays")
@@ -443,10 +453,6 @@ with tab_worm:
     else:
         cwb.selectbox("🔎 Show anomaly", ["(none yet)"], disabled=True)
         sel = ALLOPT
-    with cwc.popover("ⓘ", use_container_width=False):
-        st.markdown("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
-                    "black median; an anomaly cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
-                    "Updates live — a new cycle joins within ~60 s of each part finishing.")
     if W and (W["ncur"] or W["failprofs"]):
         xa = list(np.linspace(0, 100, 90))
         fig2 = go.Figure()
