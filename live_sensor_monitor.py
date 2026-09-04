@@ -426,6 +426,7 @@ with tab_live:
         yaxis=dict(title="current (A)", range=[0, ymax], showgrid=True, gridcolor="#eef3f5"),
         yaxis2=dict(title="vibration (pk-pk)", overlaying="y", side="right", range=[0, 35], showgrid=False),
         hovermode="x unified",
+        hoverlabel=dict(bgcolor="white", bordercolor="#e6eaed", font=dict(color="#1f2a30", size=12)),
     )
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False}, key="livechart")
 
@@ -506,7 +507,9 @@ with tab_worm:
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
             xaxis=dict(title="% through the production cycle", range=[0, 100], gridcolor="#eef3f5"),
             yaxis=dict(title="spindle current (A)", range=[0, 190], gridcolor="#eef3f5"),
-            yaxis2=dict(title="vibration (pk-pk)", overlaying="y", side="right", range=[0, 35], showgrid=False))
+            yaxis2=dict(title="vibration (pk-pk)", overlaying="y", side="right", range=[0, 35], showgrid=False),
+            hovermode="x unified",
+            hoverlabel=dict(bgcolor="white", bordercolor="#e6eaed", font=dict(color="#1f2a30", size=12)))
         st.plotly_chart(fig2, use_container_width=True, config={"displaylogo": False}, key="wormchart")
         if fail_labels:
             if sel == ALLOPT:
