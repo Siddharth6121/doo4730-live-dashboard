@@ -68,7 +68,7 @@ section[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"]{ dis
 .statuspill .ts{ color:var(--muted); font-weight:400; font-size:.78rem; }
 .stTabs [data-baseweb="tab-list"]{ gap:6px; }
 /* info icon: small bare round "i", no button chrome, lifted up toward the tab bar */
-[data-testid="stPopover"]{ margin-top:-1.9rem; margin-bottom:-0.6rem; }
+[data-testid="stPopover"]{ margin-top:-3.3rem; margin-bottom:-1.4rem; }
 [data-testid="stPopover"] button{ border:none !important; background:transparent !important;
   box-shadow:none !important; padding:0 !important; min-height:0 !important; color:var(--teal) !important; }
 [data-testid="stPopover"] button:hover{ background:transparent !important; color:var(--teal-d) !important; }
@@ -354,7 +354,8 @@ st.markdown(
     f'~{sen["time"].diff().dt.total_seconds().median():.1f}s · today since 00:00 {TZLABEL}</span></div>',
     unsafe_allow_html=True)
 
-CHART_H = 470          # fixed chart height (keeps tab 2 within one screen)
+CHART_H_LIVE = 660     # taller chart on the Live tab (uses the empty space below)
+CHART_H_WORM = 470     # shorter on the worm tab so it fits without scrolling
 
 tab_live, tab_worm = st.tabs(["📈  Live signal", "🔁  Today's cycles (worm)"])
 
@@ -417,7 +418,7 @@ with tab_live:
             fig.add_annotation(x=etp, y=ymax, text="stoppage", showarrow=False,
                                font=dict(color=RED, size=10), textangle=-90, yanchor="top", xshift=-7)
     fig.update_layout(
-        template="plotly_white", height=CHART_H, margin=dict(t=50, b=10, l=10, r=10),
+        template="plotly_white", height=CHART_H_LIVE, margin=dict(t=50, b=10, l=10, r=10),
         title=dict(text=f"Two-tier detector — live · {str(to_pac(t_end))[:19]} {TZLABEL}", font=dict(size=15, color=DARK),
                    x=0, xanchor="left", y=0.97, yanchor="top"),
         legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11)),
@@ -499,7 +500,7 @@ with tab_worm:
         wlabel = "today" if days == "Today" else f"last {days}d"
         shown_txt = f"{len(W['failprofs'])} anomaly" if sel == ALLOPT else "1 selected anomaly"
         fig2.update_layout(
-            template="plotly_white", height=CHART_H, margin=dict(t=50, b=10, l=10, r=10),
+            template="plotly_white", height=CHART_H_WORM, margin=dict(t=50, b=10, l=10, r=10),
             title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {shown_txt}",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
