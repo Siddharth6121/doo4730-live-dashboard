@@ -27,8 +27,9 @@ st.markdown("""
 html, body, [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] > .main { background: var(--bg); }
 [data-testid="stHeader"]{ background: transparent; }
 * { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-.block-container { padding-top: 2.8rem; padding-bottom: 0.6rem; max-width: 100%; }
-div[data-testid="stVerticalBlock"]{ gap: 0.8rem; }
+.block-container { padding-top: 2.0rem; padding-bottom: 0.6rem; max-width: 100%; }
+div[data-testid="stVerticalBlock"]{ gap: 0.45rem; }
+.stTabs [data-baseweb="tab-panel"]{ padding-top: 0.2rem; }
 h1,h2,h3{ color:var(--ink); letter-spacing:.2px; }
 
 /* KPI tiles — IotiView style: white card, thin border, large teal value */
@@ -66,6 +67,11 @@ section[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"]{ dis
   font-size:.92rem; display:flex; justify-content:space-between; align-items:center; }
 .statuspill .ts{ color:var(--muted); font-weight:400; font-size:.78rem; }
 .stTabs [data-baseweb="tab-list"]{ gap:6px; }
+/* info popover trigger -> small bare round "i" icon, no button chrome */
+[data-testid="stPopover"] button{ border:none !important; background:transparent !important;
+  box-shadow:none !important; padding:0 !important; min-height:0 !important; color:var(--teal) !important; }
+[data-testid="stPopover"] button:hover{ background:transparent !important; color:var(--teal-d) !important; }
+[data-testid="stPopover"] button p{ font-size:1.3rem !important; line-height:1; margin:0; }
 .stTabs [data-baseweb="tab"]{ padding:4px 10px; }
 </style>
 """, unsafe_allow_html=True)
@@ -341,16 +347,13 @@ st.markdown(
     f'~{sen["time"].diff().dt.total_seconds().median():.1f}s · today since 00:00 {TZLABEL}</span></div>',
     unsafe_allow_html=True)
 
-_, _hc = st.columns([5, 1])
-chart_h = _hc.selectbox("Graph height", [400, 550, 700, 850], index=0,
-                        format_func=lambda v: {400: "Normal", 550: "Tall", 700: "Taller", 850: "Max"}[v],
-                        key="charth")
+CHART_H = 560          # fixed, larger chart height
 
 tab_live, tab_worm = st.tabs(["📈  Live signal", "🔁  Today's cycles (worm)"])
 
 with tab_live:
     _lc, _li = st.columns([9, 1])
-    with _li.popover("ℹ️ Info", use_container_width=True):
+    with _li.popover("ⓘ", use_container_width=False):
         st.markdown(
             f"**How the two tiers work**\n\n"
             f"- **Amber dots (Tier 1)** — the current surged over {ALARM:.0f} A. Normal cutting does this "
@@ -407,7 +410,7 @@ with tab_live:
             fig.add_annotation(x=etp, y=ymax, text="stoppage", showarrow=False,
                                font=dict(color=RED, size=10), textangle=-90, yanchor="top", xshift=-7)
     fig.update_layout(
-        template="plotly_white", height=chart_h, margin=dict(t=50, b=10, l=10, r=10),
+        template="plotly_white", height=CHART_H, margin=dict(t=50, b=10, l=10, r=10),
         title=dict(text=f"Two-tier detector — live · {str(to_pac(t_end))[:19]} {TZLABEL}", font=dict(size=15, color=DARK),
                    x=0, xanchor="left", y=0.97, yanchor="top"),
         legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11)),
@@ -440,7 +443,7 @@ with tab_worm:
     else:
         cwb.selectbox("🔎 Show anomaly", ["(none yet)"], disabled=True)
         sel = ALLOPT
-    with cwc.popover("ℹ️ Info", use_container_width=True):
+    with cwc.popover("ⓘ", use_container_width=False):
         st.markdown("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
                     "black median; an anomaly cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
                     "Updates live — a new cycle joins within ~60 s of each part finishing.")
@@ -488,7 +491,7 @@ with tab_worm:
         wlabel = "today" if days == "Today" else f"last {days}d"
         shown_txt = f"{len(W['failprofs'])} anomaly" if sel == ALLOPT else "1 selected anomaly"
         fig2.update_layout(
-            template="plotly_white", height=chart_h, margin=dict(t=50, b=10, l=10, r=10),
+            template="plotly_white", height=CHART_H, margin=dict(t=50, b=10, l=10, r=10),
             title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {shown_txt}",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
