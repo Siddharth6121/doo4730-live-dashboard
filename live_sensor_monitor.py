@@ -68,11 +68,11 @@ section[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"]{ dis
 .statuspill .ts{ color:var(--muted); font-weight:400; font-size:.78rem; }
 .stTabs [data-baseweb="tab-list"]{ gap:6px; }
 /* info icon: small bare round "i", no button chrome, lifted up toward the tab bar */
-[data-testid="stPopover"]{ margin-top:-3.3rem; margin-bottom:-1.4rem; }
+[data-testid="stPopover"]{ position:relative; z-index:20; margin-top:-2.5rem; margin-bottom:-0.3rem; }
 [data-testid="stPopover"] button{ border:none !important; background:transparent !important;
   box-shadow:none !important; padding:0 !important; min-height:0 !important; color:var(--teal) !important; }
 [data-testid="stPopover"] button:hover{ background:transparent !important; color:var(--teal-d) !important; }
-[data-testid="stPopover"] button p{ font-size:1.4rem !important; line-height:1; margin:0; }
+[data-testid="stPopover"] button p{ font-size:1.35rem !important; line-height:1.3 !important; margin:0; padding:2px 0; }
 /* drop the caret/arrow next to the icon */
 [data-testid="stPopover"] button svg,
 [data-testid="stPopover"] button [data-testid="stIconMaterial"]{ display:none !important; }
@@ -354,7 +354,7 @@ st.markdown(
     f'~{sen["time"].diff().dt.total_seconds().median():.1f}s · today since 00:00 {TZLABEL}</span></div>',
     unsafe_allow_html=True)
 
-CHART_H_LIVE = 660     # taller chart on the Live tab (uses the empty space below)
+CHART_H_LIVE = 615     # taller chart on the Live tab (uses the empty space below)
 CHART_H_WORM = 470     # shorter on the worm tab so it fits without scrolling
 
 tab_live, tab_worm = st.tabs(["📈  Live signal", "🔁  Today's cycles (worm)"])
