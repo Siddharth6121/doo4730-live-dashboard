@@ -67,7 +67,7 @@ ABNORMAL = ["INTERRUPTED", "DISCONNECTED"]
 
 # All data is stored/queried in UTC; we convert to Pacific for DISPLAY only.
 PAC = "America/Los_Angeles"
-TZLABEL = "PT"            # Pacific Time (auto PST in winter / PDT in summer)
+TZLABEL = "PST"           # label shown to users; conversion is Pacific (auto PST/PDT)
 def to_pac(ts):
     """Convert naive-or-UTC timestamp(s) to naive Pacific wall-clock (display only)."""
     ts = pd.to_datetime(ts)
