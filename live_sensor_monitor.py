@@ -67,18 +67,18 @@ section[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"]{ dis
   font-size:.92rem; display:flex; justify-content:space-between; align-items:center; }
 .statuspill .ts{ color:var(--muted); font-weight:400; font-size:.78rem; }
 .stTabs [data-baseweb="tab-list"]{ gap:6px; }
-/* the info icon floats at the tab-bar level (top-right, above the divider) */
-.stTabs [data-baseweb="tab-panel"]{ position: relative; }
-[data-testid="stPopover"]{ position:absolute; top:-40px; right:6px; z-index:6; }
+/* info icon: small bare round "i", no button chrome, lifted up toward the tab bar */
+[data-testid="stPopover"]{ margin-top:-1.9rem; margin-bottom:-0.6rem; }
 [data-testid="stPopover"] button{ border:none !important; background:transparent !important;
   box-shadow:none !important; padding:0 !important; min-height:0 !important; color:var(--teal) !important; }
 [data-testid="stPopover"] button:hover{ background:transparent !important; color:var(--teal-d) !important; }
-[data-testid="stPopover"] button p{ font-size:1.35rem !important; line-height:1; margin:0; }
+[data-testid="stPopover"] button p{ font-size:1.4rem !important; line-height:1; margin:0; }
 /* drop the caret/arrow next to the icon */
 [data-testid="stPopover"] button svg,
 [data-testid="stPopover"] button [data-testid="stIconMaterial"]{ display:none !important; }
-/* tighten selectbox label -> box gap (shorter controls section) */
+/* tighter labels + tab panel so controls sit closer to the tab bar */
 [data-testid="stWidgetLabel"]{ margin-bottom:2px !important; }
+.stTabs [data-baseweb="tab-panel"]{ padding-top: 0 !important; }
 .stTabs [data-baseweb="tab"]{ padding:4px 10px; }
 </style>
 """, unsafe_allow_html=True)
@@ -354,12 +354,13 @@ st.markdown(
     f'~{sen["time"].diff().dt.total_seconds().median():.1f}s · today since 00:00 {TZLABEL}</span></div>',
     unsafe_allow_html=True)
 
-CHART_H = 560          # fixed, larger chart height
+CHART_H = 470          # fixed chart height (keeps tab 2 within one screen)
 
 tab_live, tab_worm = st.tabs(["📈  Live signal", "🔁  Today's cycles (worm)"])
 
 with tab_live:
-    with st.popover("ⓘ", use_container_width=False):
+    _sp, _ic = st.columns([13, 1])
+    with _ic.popover("ⓘ", use_container_width=False):
         st.markdown(
             f"**How the two tiers work**\n\n"
             f"- **Amber dots (Tier 1)** — the current surged over {ALARM:.0f} A. Normal cutting does this "
@@ -430,7 +431,8 @@ with tab_live:
 with tab_worm:
     ALLOPT = "— All anomalies —"
     W = None
-    with st.popover("ⓘ", use_container_width=False):
+    _sp, _ic = st.columns([13, 1])
+    with _ic.popover("ⓘ", use_container_width=False):
         st.markdown("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
                     "black median; an anomaly cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
                     "Updates live — a new cycle joins within ~60 s of each part finishing.")
