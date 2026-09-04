@@ -278,11 +278,6 @@ ss.setdefault("running", True)
 ss.running = True          # always live (sidebar controls removed for a cleaner look)
 lookback = 10              # fixed fetch look-back (minutes)
 
-st.markdown('<div class="topbar"><div class="logo"></div>'
-            '<div><div class="title">DOO4730 — Live Tool-Anomaly Detection</div>'
-            '<div class="sub">Real-time two-tier detector · current surge confirmed by a machine stoppage</div>'
-            '</div></div>',
-            unsafe_allow_html=True)
 
 if client is None:
     st.error("InfluxDB offline."); st.stop()
@@ -346,9 +341,31 @@ st.markdown(
     f'~{sen["time"].diff().dt.total_seconds().median():.1f}s · today since 00:00 {TZLABEL}</span></div>',
     unsafe_allow_html=True)
 
+_, _hc = st.columns([5, 1])
+chart_h = _hc.selectbox("Graph height", [400, 550, 700, 850], index=0,
+                        format_func=lambda v: {400: "Normal", 550: "Tall", 700: "Taller", 850: "Max"}[v],
+                        key="charth")
+
 tab_live, tab_worm = st.tabs(["📈  Live signal", "🔁  Today's cycles (worm)"])
 
 with tab_live:
+    _lc, _li = st.columns([9, 1])
+    with _li.popover("ℹ️ Info", use_container_width=True):
+        st.markdown(
+            f"**How the two tiers work**\n\n"
+            f"- **Amber dots (Tier 1)** — the current surged over {ALARM:.0f} A. Normal cutting does this "
+            f"~149×/day, so on its own it is only a **watch** item, not an alarm.\n"
+            f"- **Red star (Tier 2)** — a surge that **coincided with the machine stopping** "
+            f"(INTERRUPTED/DISCONNECTED within {CONFIRM_S}s) or the sensor feed going silent. "
+            f"This is the real anomaly signal (~0.5×/day) and is the only thing that raises the loud alert.\n"
+            f"- **Teal line (current)** — the real, instantaneous spindle current; the sharp peaks are "
+            f"genuine surges, and a surge over {ALARM:.0f} A is exactly the signal we detect.\n"
+            f"- **Red vertical line** — a live machine stoppage from the status stream.\n"
+            f"- **Green dotted line (vibration)** — shown for context on the right axis; click it in the legend "
+            f"to hide. It stays low/erratic and is not used to trigger — current is the trigger.\n"
+            f"- This is how a real catch is told apart from the ~150 daily false surges: the stoppage confirms it."
+        )
+
     # ---- interactive Plotly chart ----
     w = sen[sen["time"] >= t_end - pd.Timedelta(seconds=WINDOW_S)]
     ws = w[w["flag_surge"]]
@@ -390,7 +407,7 @@ with tab_live:
             fig.add_annotation(x=etp, y=ymax, text="stoppage", showarrow=False,
                                font=dict(color=RED, size=10), textangle=-90, yanchor="top", xshift=-7)
     fig.update_layout(
-        template="plotly_white", height=400, margin=dict(t=50, b=10, l=10, r=10),
+        template="plotly_white", height=chart_h, margin=dict(t=50, b=10, l=10, r=10),
         title=dict(text=f"Two-tier detector — live · {str(to_pac(t_end))[:19]} {TZLABEL}", font=dict(size=15, color=DARK),
                    x=0, xanchor="left", y=0.97, yanchor="top"),
         legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11)),
@@ -401,25 +418,10 @@ with tab_live:
     )
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False}, key="livechart")
 
-    with st.expander("How the two tiers work"):
-        st.markdown(
-            f"- **Amber dots (Tier 1)** — the current surged over {ALARM:.0f} A. Normal cutting does this "
-            f"~149×/day, so on its own it is only a **watch** item, not an alarm.\n"
-            f"- **Red star (Tier 2)** — a surge that **coincided with the machine stopping** "
-            f"(INTERRUPTED/DISCONNECTED within {CONFIRM_S}s) or the sensor feed going silent. "
-            f"This is the real anomaly signal (~0.5×/day) and is the only thing that raises the loud alert.\n"
-            f"- **Teal line (current)** — the real, instantaneous spindle current; the sharp peaks are "
-            f"genuine surges, and a surge over {ALARM:.0f} A is exactly the signal we detect.\n"
-            f"- **Red vertical line** — a live machine stoppage from the status stream.\n"
-            f"- **Green dotted line (vibration)** — shown for context on the right axis; click it in the legend "
-            f"to hide. It stays low/erratic and is not used to trigger — current is the trigger.\n"
-            f"- This is how a real catch is told apart from the ~150 daily false surges: the stoppage confirms it."
-        )
-
 with tab_worm:
     ALLOPT = "— All anomalies —"
     W = None
-    cwa, cwb = st.columns([1, 1])
+    cwa, cwb, cwc = st.columns([1, 1, 0.5])
     days = cwa.selectbox("History window", ["Today", 1, 3, 7, 14],
                          format_func=lambda x: f"Today (since 00:00 {TZLABEL})" if x == "Today"
                          else f"last {x} day" + ("s" if x > 1 else ""), key="wormdays")
@@ -438,9 +440,10 @@ with tab_worm:
     else:
         cwb.selectbox("🔎 Show anomaly", ["(none yet)"], disabled=True)
         sel = ALLOPT
-    st.caption("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
-               "black median; an anomaly cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
-               "Updates live — a new cycle joins within ~60 s of each part finishing.")
+    with cwc.popover("ℹ️ Info", use_container_width=True):
+        st.markdown("Completed part-cycles overlaid on a 0–100% cycle axis. Normal cycles build the light-blue band + "
+                    "black median; an anomaly cycle is drawn in **red**. Toggle **Current / Vibration** via the legend. "
+                    "Updates live — a new cycle joins within ~60 s of each part finishing.")
     if W and (W["ncur"] or W["failprofs"]):
         xa = list(np.linspace(0, 100, 90))
         fig2 = go.Figure()
@@ -485,7 +488,7 @@ with tab_worm:
         wlabel = "today" if days == "Today" else f"last {days}d"
         shown_txt = f"{len(W['failprofs'])} anomaly" if sel == ALLOPT else "1 selected anomaly"
         fig2.update_layout(
-            template="plotly_white", height=400, margin=dict(t=50, b=10, l=10, r=10),
+            template="plotly_white", height=chart_h, margin=dict(t=50, b=10, l=10, r=10),
             title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {shown_txt}",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
@@ -501,13 +504,14 @@ with tab_worm:
     else:
         st.info("Building the cycle view… waiting for at least one completed part-cycle in the selected window.")
 
-    st.markdown("**🚨 Anomalies detected in this window**")
-    if W and W["fails"]:
-        ftab = pd.DataFrame([{f"Time ({TZLABEL})": str(to_pac(t))[:19], "Peak current (A)": round(p, 0),
-                              "Vibration (pk-pk)": round(v, 1)} for t, p, v in W["fails"]])
-        st.dataframe(ftab, use_container_width=True, hide_index=True)
-    else:
-        st.caption("No confirmed anomalies in this window. Any detected anomaly will appear here and as a red cycle above.")
+    _n_an = len(W["fails"]) if (W and W["fails"]) else 0
+    with st.expander(f"🚨 Anomalies detected in this window ({_n_an})", expanded=False):
+        if W and W["fails"]:
+            ftab = pd.DataFrame([{f"Time ({TZLABEL})": str(to_pac(t))[:19], "Peak current (A)": round(p, 0),
+                                  "Vibration (pk-pk)": round(v, 1)} for t, p, v in W["fails"]])
+            st.dataframe(ftab, use_container_width=True, hide_index=True)
+        else:
+            st.caption("No confirmed anomalies in this window. Any detected anomaly will appear here and as a red cycle above.")
 
 if ss.running:
     time.sleep(3)
