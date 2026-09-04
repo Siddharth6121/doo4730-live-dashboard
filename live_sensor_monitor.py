@@ -467,7 +467,7 @@ with tab_worm:
                 fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines", line=dict(color="rgba(91,143,181,0.22)", width=1),
                               legendgroup="Current", name="Current", showlegend=(i == 0), hoverinfo="skip"))
             fig2.add_trace(go.Scatter(x=xa, y=list(med), line=dict(color=DARK, width=2.8),
-                          legendgroup="Current", name="Current median"))
+                          legendgroup="Current", name="Current (median)"))
         else:
             for i, p in enumerate(W["ncur"]):
                 fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines", line=dict(color="rgba(91,143,181,0.5)", width=1.2),
@@ -483,7 +483,7 @@ with tab_worm:
                           fillcolor="rgba(44,160,72,0.16)", line=dict(width=0), legendgroup="Vibration",
                           showlegend=False, hoverinfo="skip", yaxis="y2", visible="legendonly"))
             fig2.add_trace(go.Scatter(x=xa, y=list(vmed), line=dict(color="#166b32", width=2.6),
-                          legendgroup="Vibration", name="Median (vib)", yaxis="y2", visible="legendonly"))
+                          legendgroup="Vibration", name="Vibration (median)", yaxis="y2", visible="legendonly"))
             fig2.add_trace(go.Scatter(x=xa, y=list(W["nvib"][-1]), line=dict(color="#2ca048", width=2.4, dash="dot"),
                           legendgroup="Vibration", name="Latest cycle (vib)",
                           yaxis="y2", visible="legendonly"))
