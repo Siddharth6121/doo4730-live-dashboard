@@ -65,6 +65,20 @@ CONFIRM_S = 30            # a surge is confirmed if a stoppage occurs within thi
 WINDOW_S = 150
 ABNORMAL = ["INTERRUPTED", "DISCONNECTED"]
 
+# All data is stored/queried in UTC; we convert to Pacific for DISPLAY only.
+PAC = "America/Los_Angeles"
+TZLABEL = "PT"            # Pacific Time (auto PST in winter / PDT in summer)
+def to_pac(ts):
+    """Convert naive-or-UTC timestamp(s) to naive Pacific wall-clock (display only)."""
+    ts = pd.to_datetime(ts)
+    if isinstance(ts, pd.Series):
+        if ts.dt.tz is None:
+            ts = ts.dt.tz_localize("UTC")
+        return ts.dt.tz_convert(PAC).dt.tz_localize(None)
+    if ts.tz is None:
+        ts = ts.tz_localize("UTC")
+    return ts.tz_convert(PAC).tz_localize(None)
+
 
 @st.cache_resource(show_spinner=False)
 def get_influx():
@@ -115,8 +129,8 @@ def fetch_status(client, minutes):
 def today_summary(_client):
     """Daily rollup since 00:00 UTC. Uses the sparse status stream plus small sensor checks
     (never a full-day 1 Hz pull, which would hit the file-scan limit). Cached for 2 minutes."""
-    now = pd.Timestamp.utcnow().tz_localize(None)
-    mins = int((now - now.normalize()).total_seconds() // 60) + 2
+    now_p = pd.Timestamp.now(tz=PAC)
+    mins = int((now_p - now_p.normalize()).total_seconds() // 60) + 2
     out = {"failures": 0, "last": None, "stoppages": 0, "parts": 0}
     try:
         sta = _client.query(
@@ -147,7 +161,7 @@ def today_summary(_client):
             if ((mc - mc.shift(2)) > ALARM).any():
                 fails.append(t)
     out["failures"] = len(fails)
-    out["last"] = str(max(fails))[:19] if fails else None
+    out["last"] = str(to_pac(max(fails)))[:19] if fails else None
     return out
 
 
@@ -178,8 +192,8 @@ def cycle_profile(_client, s_iso, e_iso, N=90):
 def worm_data(_client, days=1, cap=80):
     """Overlay of cycles over a window (days=int → rolling N days; days='Today' → since 00:00 UTC)."""
     if days == "Today":
-        now = pd.Timestamp.utcnow().tz_localize(None)
-        mins = int((now - now.normalize()).total_seconds() // 60) + 2
+        now_p = pd.Timestamp.now(tz=PAC)
+        mins = int((now_p - now_p.normalize()).total_seconds() // 60) + 2
     else:
         mins = int(days) * 1440 + 2
     try:
@@ -232,7 +246,7 @@ def worm_data(_client, days=1, cap=80):
         e0 = s0 + pd.Timedelta(seconds=mdur)
         p = cycle_profile(_client, s0.strftime("%Y-%m-%d %H:%M:%S"), e0.strftime("%Y-%m-%d %H:%M:%S"))
         if p is not None:
-            failprofs.append((str(ft)[:19], p["cur"], p["vib"]))
+            failprofs.append((str(to_pac(ft))[:19], p["cur"], p["vib"]))
     return {"ncur": ncur, "nvib": nvib, "failprofs": failprofs, "fails": fails, "ncyc": len(cyc)}
 
 
@@ -310,8 +324,8 @@ m[6].metric("Parts today", d["parts"])
 
 st.markdown(
     f'<div class="statuspill" style="background:{scol}1a;border-left:4px solid {scol};color:{scol}">'
-    f'<span>{stxt}</span><span class="ts">latest {str(t_end)[11:19]} · now {str(now_utc)[11:19]} UTC · '
-    f'~{sen["time"].diff().dt.total_seconds().median():.1f}s · today since 00:00 UTC</span></div>',
+    f'<span>{stxt}</span><span class="ts">latest {str(to_pac(t_end))[11:19]} · now {str(to_pac(now_utc))[11:19]} {TZLABEL} · '
+    f'~{sen["time"].diff().dt.total_seconds().median():.1f}s · today since 00:00 {TZLABEL}</span></div>',
     unsafe_allow_html=True)
 
 tab_live, tab_worm = st.tabs(["📈  Live signal", "🔁  Today's cycles (worm)"])
@@ -327,14 +341,14 @@ with tab_live:
 
     ymax = max(160.0, float(w["max_current"].max()) * 1.12)
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=w["time"], y=w["max_current"], mode="lines",
+    fig.add_trace(go.Scatter(x=to_pac(w["time"]), y=w["max_current"], mode="lines",
                   line=dict(color=TEAL, width=1.8),
                   fill="tozeroy",
                   fillgradient=dict(type="vertical",
                       colorscale=[[0.0, "rgba(47,143,179,0.03)"], [1.0, "rgba(47,143,179,0.28)"]]),
                   name="Spindle current",
                   hovertemplate="%{x|%H:%M:%S}<br>%{y:.0f} A<extra></extra>"))
-    fig.add_trace(go.Scatter(x=w["time"], y=w["vib"], mode="lines",
+    fig.add_trace(go.Scatter(x=to_pac(w["time"]), y=w["vib"], mode="lines",
                   line=dict(color=GREEN, width=1.4, dash="dot"),
                   name="Vibration", yaxis="y2",
                   hovertemplate="%{x|%H:%M:%S}<br>vib %{y:.1f}<extra></extra>"))
@@ -342,26 +356,27 @@ with tab_live:
                   annotation_text=f"alarm {ALARM:.0f} A", annotation_position="top left",
                   annotation_font_color=AMBER)
     if len(watch):
-        fig.add_trace(go.Scatter(x=watch["time"], y=watch["max_current"], mode="markers",
+        fig.add_trace(go.Scatter(x=to_pac(watch["time"]), y=watch["max_current"], mode="markers",
                       marker=dict(color=AMBER, size=9, line=dict(color="#fff", width=1)),
                       name="Tier-1 surge (watch)",
                       hovertemplate="watch surge<br>%{x|%H:%M:%S} · %{y:.0f} A<extra></extra>"))
     if len(conf):
-        fig.add_trace(go.Scatter(x=conf["time"], y=conf["max_current"], mode="markers",
+        fig.add_trace(go.Scatter(x=to_pac(conf["time"]), y=conf["max_current"], mode="markers",
                       marker=dict(color=RED, size=17, symbol="star", line=dict(color="#fff", width=1)),
                       name="Tier-2 CONFIRMED anomaly",
                       hovertemplate="CONFIRMED anomaly<br>%{x|%H:%M:%S} · %{y:.0f} A<extra></extra>"))
     for et in abn_times:
         if len(w) and w["time"].min() <= et <= w["time"].max():
-            fig.add_vline(x=et, line_color=RED, line_width=1.6, opacity=0.5)
-            fig.add_annotation(x=et, y=ymax, text="stoppage", showarrow=False,
+            etp = to_pac(et)
+            fig.add_vline(x=etp, line_color=RED, line_width=1.6, opacity=0.5)
+            fig.add_annotation(x=etp, y=ymax, text="stoppage", showarrow=False,
                                font=dict(color=RED, size=10), textangle=-90, yanchor="top", xshift=-7)
     fig.update_layout(
         template="plotly_white", height=400, margin=dict(t=50, b=10, l=10, r=10),
-        title=dict(text=f"Two-tier detector — live · {str(t_end)[:19]} UTC", font=dict(size=15, color=DARK),
+        title=dict(text=f"Two-tier detector — live · {str(to_pac(t_end))[:19]} {TZLABEL}", font=dict(size=15, color=DARK),
                    x=0, xanchor="left", y=0.97, yanchor="top"),
         legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11)),
-        xaxis=dict(title="time (UTC)", showgrid=True, gridcolor="#eef3f5"),
+        xaxis=dict(title=f"time ({TZLABEL})", showgrid=True, gridcolor="#eef3f5"),
         yaxis=dict(title="current (A)", range=[0, ymax], showgrid=True, gridcolor="#eef3f5"),
         yaxis2=dict(title="vibration (pk-pk)", overlaying="y", side="right", range=[0, 35], showgrid=False),
         hovermode="x unified",
@@ -388,13 +403,13 @@ with tab_worm:
     W = None
     cwa, cwb = st.columns([1, 1])
     days = cwa.selectbox("History window", ["Today", 1, 3, 7, 14],
-                         format_func=lambda x: "Today (since 00:00 UTC)" if x == "Today"
+                         format_func=lambda x: f"Today (since 00:00 {TZLABEL})" if x == "Today"
                          else f"last {x} day" + ("s" if x > 1 else ""), key="wormdays")
     try:
         W = worm_data(client, days)
     except Exception as e:
         st.warning(f"Cycle view temporarily unavailable: {e}")
-    fail_labels = [str(t)[:19] for t, _p, _v in W["fails"]] if (W and W["fails"]) else []
+    fail_labels = [str(to_pac(t))[:19] for t, _p, _v in W["fails"]] if (W and W["fails"]) else []
     # keep the stored selection valid across day changes (avoids a stale-value error)
     if st.session_state.get("failsel") not in ([ALLOPT] + fail_labels):
         st.session_state["failsel"] = ALLOPT
@@ -464,13 +479,13 @@ with tab_worm:
             if sel == ALLOPT:
                 st.markdown(f"<div style='color:#54606A;font-size:.86rem;margin-top:-6px'>Showing <b>all {len(W['failprofs'])} anomalies</b> in this window — pick one from the <b>Show anomaly</b> dropdown (top) to isolate it.</div>", unsafe_allow_html=True)
             else:
-                st.markdown(f"<div style='color:#c0392b;font-size:.9rem;font-weight:600;margin-top:-6px'>Showing <b>only the selected anomaly</b> · {sel} UTC — choose “{ALLOPT}” to show all.</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='color:#c0392b;font-size:.9rem;font-weight:600;margin-top:-6px'>Showing <b>only the selected anomaly</b> · {sel} {TZLABEL} — choose “{ALLOPT}” to show all.</div>", unsafe_allow_html=True)
     else:
         st.info("Building the cycle view… waiting for at least one completed part-cycle in the selected window.")
 
     st.markdown("**🚨 Anomalies detected in this window**")
     if W and W["fails"]:
-        ftab = pd.DataFrame([{"Time (UTC)": str(t)[:19], "Peak current (A)": round(p, 0),
+        ftab = pd.DataFrame([{f"Time ({TZLABEL})": str(to_pac(t))[:19], "Peak current (A)": round(p, 0),
                               "Vibration (pk-pk)": round(v, 1)} for t, p, v in W["fails"]])
         st.dataframe(ftab, use_container_width=True, hide_index=True)
     else:
