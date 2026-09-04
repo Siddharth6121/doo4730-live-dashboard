@@ -394,11 +394,11 @@ with tab_live:
                   fillgradient=dict(type="vertical",
                       colorscale=[[0.0, "rgba(47,143,179,0.03)"], [1.0, "rgba(47,143,179,0.28)"]]),
                   name="Current",
-                  hovertemplate="%{x|%H:%M:%S}<br>%{y:.0f} A<extra></extra>"))
+                  hovertemplate="%{y:.0f} A"))
     fig.add_trace(go.Scatter(x=to_pac(w["time"]), y=w["vib"], mode="lines",
                   line=dict(color=GREEN, width=1.4, dash="dot"),
                   name="Vibration", yaxis="y2",
-                  hovertemplate="%{x|%H:%M:%S}<br>vib %{y:.1f}<extra></extra>"))
+                  hovertemplate="%{y:.1f}"))
     fig.add_hline(y=ALARM, line_dash="dash", line_color=AMBER, line_width=1.4,
                   annotation_text=f"alarm {ALARM:.0f} A", annotation_position="top left",
                   annotation_font_color=AMBER)
@@ -406,12 +406,12 @@ with tab_live:
         fig.add_trace(go.Scatter(x=to_pac(watch["time"]), y=watch["max_current"], mode="markers",
                       marker=dict(color=AMBER, size=9, line=dict(color="#fff", width=1)),
                       name="Tier-1 (watch)",
-                      hovertemplate="watch surge<br>%{x|%H:%M:%S} · %{y:.0f} A<extra></extra>"))
+                      hovertemplate="%{y:.0f} A"))
     if len(conf):
         fig.add_trace(go.Scatter(x=to_pac(conf["time"]), y=conf["max_current"], mode="markers",
                       marker=dict(color=RED, size=17, symbol="star", line=dict(color="#fff", width=1)),
                       name="Tier-2 (alarm)",
-                      hovertemplate="CONFIRMED anomaly<br>%{x|%H:%M:%S} · %{y:.0f} A<extra></extra>"))
+                      hovertemplate="%{y:.0f} A"))
     for et in abn_times:
         if len(w) and w["time"].min() <= et <= w["time"].max():
             etp = to_pac(et)
@@ -427,7 +427,7 @@ with tab_live:
         yaxis=dict(title="current (A)", range=[0, ymax], showgrid=True, gridcolor="#eef3f5"),
         yaxis2=dict(title="vibration (pk-pk)", overlaying="y", side="right", range=[0, 35], showgrid=False),
         hovermode="x unified",
-        hoverlabel=dict(bgcolor="white", bordercolor="#e6eaed", font=dict(color="#1f2a30", size=12)),
+        hoverlabel=dict(bgcolor="white", bordercolor="#e6eaed", font=dict(color="#1f2a30", size=12), namelength=-1),
     )
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False}, key="livechart")
 
@@ -471,7 +471,8 @@ with tab_worm:
                 fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines", line=dict(color="rgba(91,143,181,0.22)", width=1),
                               legendgroup="Current", name="Current", showlegend=(i == 0), hoverinfo="skip"))
             fig2.add_trace(go.Scatter(x=xa, y=list(med), line=dict(color=DARK, width=2.8),
-                          legendgroup="Current", showlegend=False, name="current median"))
+                          legendgroup="Current", showlegend=False, name="current median",
+                          hovertemplate="%{y:.0f} A"))
         else:
             for i, p in enumerate(W["ncur"]):
                 fig2.add_trace(go.Scatter(x=xa, y=list(p), mode="lines", line=dict(color="rgba(91,143,181,0.5)", width=1.2),
@@ -479,7 +480,7 @@ with tab_worm:
         if W["ncur"]:                                          # newest cycle stands out as a teal dotted line
             fig2.add_trace(go.Scatter(x=xa, y=list(W["ncur"][-1]), mode="lines",
                           line=dict(color="#2F8FB3", width=2.6, dash="dot"),
-                          legendgroup="Current", name="latest cycle"))
+                          legendgroup="Current", name="latest cycle", hovertemplate="%{y:.0f} A"))
         # ---- vibration group (hidden until toggled on) ----
         if len(W["nvib"]) >= 3:
             Vv = np.array(W["nvib"]); vp10 = np.percentile(Vv, 10, axis=0); vp90 = np.percentile(Vv, 90, axis=0); vmed = np.median(Vv, axis=0)
@@ -487,18 +488,20 @@ with tab_worm:
                           fillcolor="rgba(44,160,72,0.16)", line=dict(width=0), legendgroup="Vibration",
                           showlegend=False, hoverinfo="skip", yaxis="y2", visible="legendonly"))
             fig2.add_trace(go.Scatter(x=xa, y=list(vmed), line=dict(color="#166b32", width=2.6),
-                          legendgroup="Vibration", name="Vibration", yaxis="y2", visible="legendonly"))
+                          legendgroup="Vibration", name="Vibration", yaxis="y2", visible="legendonly",
+                          hovertemplate="%{y:.1f}"))
             fig2.add_trace(go.Scatter(x=xa, y=list(W["nvib"][-1]), line=dict(color="#2ca048", width=2.4, dash="dot"),
-                          legendgroup="Vibration", name="latest cycle (vib)", showlegend=False,
-                          yaxis="y2", visible="legendonly"))
+                          legendgroup="Vibration", name="latest (vib)", showlegend=False,
+                          yaxis="y2", visible="legendonly", hovertemplate="%{y:.1f}"))
         for lbl, curp, vibp in W["failprofs"]:
             if sel != ALLOPT and sel != lbl:      # show all, or only the one selected in the dropdown
                 continue
             fig2.add_trace(go.Scatter(x=xa, y=list(curp), line=dict(color=RED, width=3.4),
-                          legendgroup="Current", showlegend=False, name=f"ANOMALY {lbl[11:]}"))
+                          legendgroup="Current", showlegend=False, name=f"ANOMALY {lbl[11:]}",
+                          hovertemplate="%{y:.0f} A"))
             fig2.add_trace(go.Scatter(x=xa, y=list(vibp), line=dict(color="#e08a00", width=2, dash="dash"),
                           legendgroup="Vibration", showlegend=False, name=f"ANOMALY vib {lbl[11:]}",
-                          yaxis="y2", visible="legendonly"))
+                          yaxis="y2", visible="legendonly", hovertemplate="%{y:.1f}"))
         wlabel = "today" if days == "Today" else f"last {days}d"
         shown_txt = f"{len(W['failprofs'])} anomaly" if sel == ALLOPT else "1 selected anomaly"
         fig2.update_layout(
@@ -510,7 +513,7 @@ with tab_worm:
             yaxis=dict(title="spindle current (A)", range=[0, 190], gridcolor="#eef3f5"),
             yaxis2=dict(title="vibration (pk-pk)", overlaying="y", side="right", range=[0, 35], showgrid=False),
             hovermode="x unified",
-            hoverlabel=dict(bgcolor="white", bordercolor="#e6eaed", font=dict(color="#1f2a30", size=12)))
+            hoverlabel=dict(bgcolor="white", bordercolor="#e6eaed", font=dict(color="#1f2a30", size=12), namelength=-1))
         st.plotly_chart(fig2, use_container_width=True, config={"displaylogo": False}, key="wormchart")
         if fail_labels:
             if sel == ALLOPT:
