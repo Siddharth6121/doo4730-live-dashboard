@@ -20,30 +20,51 @@ import streamlit as st
 st.set_page_config(page_title="DOO4730 LIVE Detection", layout="wide", page_icon="🟢")
 
 # ---- brand / styling ----
-TEAL = "#2F8FB3"; DARK = "#161C22"; AMBER = "#e0a030"; RED = "#cf4040"; GREEN = "#2ca048"
+TEAL = "#2E7FB0"; DARK = "#161C22"; AMBER = "#e0a030"; RED = "#cf4040"; GREEN = "#2ca048"
 st.markdown("""
 <style>
-:root { --teal:#2F8FB3; }
-.block-container { padding-top: 3.4rem; padding-bottom: 0.4rem; max-width: 100%; }
-div[data-testid="stVerticalBlock"]{ gap: 0.72rem; }
-h1,h2,h3{ letter-spacing:.2px; }
+:root { --teal:#2E7FB0; --teal-d:#246b86; --ink:#1f2a30; --muted:#6b7883; --line:#e6eaed; --bg:#f3f5f7; }
+html, body, [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] > .main { background: var(--bg); }
+[data-testid="stHeader"]{ background: transparent; }
+* { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.block-container { padding-top: 2.8rem; padding-bottom: 0.6rem; max-width: 100%; }
+div[data-testid="stVerticalBlock"]{ gap: 0.8rem; }
+h1,h2,h3{ color:var(--ink); letter-spacing:.2px; }
+
+/* KPI tiles — IotiView style: white card, thin border, large teal value */
 div[data-testid="stMetric"]{
-  background:#ffffff;
-  border:1px solid #e5edf1; border-left:3px solid var(--teal);
-  border-radius:12px; padding:11px 15px; box-shadow:0 1px 3px rgba(20,28,34,.06);
-  min-height:78px; display:flex; flex-direction:column; justify-content:center;
+  background:#ffffff; border:1px solid var(--line); border-radius:10px;
+  padding:12px 16px; box-shadow:0 1px 2px rgba(20,28,34,.04);
+  min-height:82px; display:flex; flex-direction:column; justify-content:center;
 }
-div[data-testid="stMetric"]:hover{ box-shadow:0 2px 8px rgba(20,28,34,.10); border-left-color:#246b86; }
-div[data-testid="stMetricLabel"] p{ color:#5b6a74; font-weight:600; font-size:.66rem;
-  text-transform:uppercase; letter-spacing:.05em; }
-div[data-testid="stMetricValue"]{ color:#141c22; font-weight:700; font-size:1.28rem; line-height:1.15; }
-.hero{ background:linear-gradient(90deg,#2F8FB3,#246b86); color:#fff;
-  border-radius:12px; padding:13px 22px; margin-bottom:16px; }
-.hero h1{ margin:0; font-size:1.32rem; color:#fff; }
-.hero p{ margin:1px 0 0; color:#dbeef5; font-size:.85rem; }
-.statuspill{ border-radius:10px; padding:9px 15px; font-weight:600; margin:6px 0 8px;
+div[data-testid="stMetric"]:hover{ box-shadow:0 3px 10px rgba(20,28,34,.08); }
+div[data-testid="stMetricLabel"] p{ color:var(--muted); font-weight:600; font-size:.63rem;
+  text-transform:uppercase; letter-spacing:.06em; }
+div[data-testid="stMetricValue"]{ color:var(--teal); font-weight:700; font-size:1.4rem; line-height:1.12; }
+
+/* charts + tables as white bordered panels */
+div[data-testid="stPlotlyChart"], div[data-testid="stDataFrame"]{
+  background:#ffffff; border:1px solid var(--line); border-radius:12px;
+  padding:8px; box-shadow:0 1px 2px rgba(20,28,34,.04); overflow:hidden;
+}
+
+/* white sidebar */
+section[data-testid="stSidebar"]{ background:#ffffff; border-right:1px solid var(--line); }
+
+/* clean top bar with logo (matches IotiView header) */
+.topbar{ display:flex; align-items:center; gap:13px; background:#ffffff;
+  border:1px solid var(--line); border-radius:12px; padding:12px 20px; margin-bottom:12px;
+  box-shadow:0 1px 2px rgba(20,28,34,.04); }
+.topbar .logo{ width:36px; height:36px; border-radius:9px; background:#161C22;
+  display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.topbar .logo::after{ content:""; width:15px; height:15px; border-radius:50%;
+  border:2.5px solid #fff; display:block; }
+.topbar .title{ font-size:1.14rem; font-weight:700; color:var(--ink); line-height:1.15; }
+.topbar .sub{ font-size:.8rem; color:var(--muted); margin-top:2px; }
+
+.statuspill{ border-radius:10px; padding:10px 15px; font-weight:600; margin:4px 0 6px;
   font-size:.92rem; display:flex; justify-content:space-between; align-items:center; }
-.statuspill .ts{ color:#54606A; font-weight:400; font-size:.78rem; }
+.statuspill .ts{ color:var(--muted); font-weight:400; font-size:.78rem; }
 .stTabs [data-baseweb="tab-list"]{ gap:6px; }
 .stTabs [data-baseweb="tab"]{ padding:4px 10px; }
 </style>
@@ -262,8 +283,10 @@ st.sidebar.caption("Two-tier detector. Tier 1 = current surge (watch, ~149/day).
                    "Tier 2 = surge **+ machine stoppage** or sensor dropout (real anomaly, ~0.5/day). "
                    "Only Tier 2 alarms.")
 
-st.markdown('<div class="hero"><h1>🟢 DOO4730 — Live Tool-Anomaly Detection</h1>'
-            '<p>Real-time two-tier detector · current surge confirmed by a machine stoppage</p></div>',
+st.markdown('<div class="topbar"><div class="logo"></div>'
+            '<div><div class="title">DOO4730 — Live Tool-Anomaly Detection</div>'
+            '<div class="sub">Real-time two-tier detector · current surge confirmed by a machine stoppage</div>'
+            '</div></div>',
             unsafe_allow_html=True)
 
 if client is None:
