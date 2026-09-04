@@ -41,7 +41,8 @@ div[data-testid="stMetric"]{
 div[data-testid="stMetric"]:hover{ box-shadow:0 3px 10px rgba(20,28,34,.08); }
 div[data-testid="stMetricLabel"] p{ color:var(--muted); font-weight:600; font-size:.63rem;
   text-transform:uppercase; letter-spacing:.06em; }
-div[data-testid="stMetricValue"]{ color:var(--teal); font-weight:700; font-size:1.4rem; line-height:1.12; }
+div[data-testid="stMetricValue"]{ color:var(--teal); font-weight:700; font-size:1.28rem; line-height:1.12;
+  overflow:visible; white-space:nowrap; }
 
 /* charts + tables as white bordered panels */
 div[data-testid="stPlotlyChart"], div[data-testid="stDataFrame"]{
@@ -392,7 +393,7 @@ with tab_live:
                   fill="tozeroy",
                   fillgradient=dict(type="vertical",
                       colorscale=[[0.0, "rgba(47,143,179,0.03)"], [1.0, "rgba(47,143,179,0.28)"]]),
-                  name="Spindle current",
+                  name="Current",
                   hovertemplate="%{x|%H:%M:%S}<br>%{y:.0f} A<extra></extra>"))
     fig.add_trace(go.Scatter(x=to_pac(w["time"]), y=w["vib"], mode="lines",
                   line=dict(color=GREEN, width=1.4, dash="dot"),
@@ -404,12 +405,12 @@ with tab_live:
     if len(watch):
         fig.add_trace(go.Scatter(x=to_pac(watch["time"]), y=watch["max_current"], mode="markers",
                       marker=dict(color=AMBER, size=9, line=dict(color="#fff", width=1)),
-                      name="Tier-1 surge (watch)",
+                      name="Tier-1 (watch)",
                       hovertemplate="watch surge<br>%{x|%H:%M:%S} · %{y:.0f} A<extra></extra>"))
     if len(conf):
         fig.add_trace(go.Scatter(x=to_pac(conf["time"]), y=conf["max_current"], mode="markers",
                       marker=dict(color=RED, size=17, symbol="star", line=dict(color="#fff", width=1)),
-                      name="Tier-2 CONFIRMED anomaly",
+                      name="Tier-2 (alarm)",
                       hovertemplate="CONFIRMED anomaly<br>%{x|%H:%M:%S} · %{y:.0f} A<extra></extra>"))
     for et in abn_times:
         if len(w) and w["time"].min() <= et <= w["time"].max():
@@ -418,7 +419,7 @@ with tab_live:
             fig.add_annotation(x=etp, y=ymax, text="stoppage", showarrow=False,
                                font=dict(color=RED, size=10), textangle=-90, yanchor="top", xshift=-7)
     fig.update_layout(
-        template="plotly_white", height=CHART_H_LIVE, margin=dict(t=50, b=10, l=10, r=10),
+        template="plotly_white", height=CHART_H_LIVE, margin=dict(t=50, b=10, l=10, r=120),
         title=dict(text=f"Two-tier detector — live · {str(to_pac(t_end))[:19]} {TZLABEL}", font=dict(size=15, color=DARK),
                    x=0, xanchor="left", y=0.97, yanchor="top"),
         legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11)),
@@ -501,7 +502,7 @@ with tab_worm:
         wlabel = "today" if days == "Today" else f"last {days}d"
         shown_txt = f"{len(W['failprofs'])} anomaly" if sel == ALLOPT else "1 selected anomaly"
         fig2.update_layout(
-            template="plotly_white", height=CHART_H_WORM, margin=dict(t=50, b=10, l=10, r=10),
+            template="plotly_white", height=CHART_H_WORM, margin=dict(t=50, b=10, l=10, r=120),
             title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {shown_txt}",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
