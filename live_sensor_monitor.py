@@ -419,7 +419,7 @@ with tab_live:
             fig.add_annotation(x=etp, y=ymax, text="stoppage", showarrow=False,
                                font=dict(color=RED, size=10), textangle=-90, yanchor="top", xshift=-7)
     fig.update_layout(
-        template="plotly_white", height=CHART_H_LIVE, margin=dict(t=50, b=10, l=10, r=120),
+        template="plotly_white", height=CHART_H_LIVE, margin=dict(t=50, b=10, l=10, r=170),
         title=dict(text=f"Two-tier detector — live · {str(to_pac(t_end))[:19]} {TZLABEL}", font=dict(size=15, color=DARK),
                    x=0, xanchor="left", y=0.97, yanchor="top"),
         legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11)),
@@ -505,7 +505,7 @@ with tab_worm:
         wlabel = "today" if days == "Today" else f"last {days}d"
         shown_txt = f"{len(W['failprofs'])} anomaly" if sel == ALLOPT else "1 selected anomaly"
         fig2.update_layout(
-            template="plotly_white", height=CHART_H_WORM, margin=dict(t=50, b=10, l=10, r=120),
+            template="plotly_white", height=CHART_H_WORM, margin=dict(t=50, b=10, l=10, r=170),
             title=dict(text=f"Cycles overlaid ({W['ncyc']} cycles · {wlabel}) — {len(W['ncur'])} normal · {shown_txt}",
                        font=dict(size=15, color=DARK), x=0, xanchor="left", y=0.97, yanchor="top"),
             legend=dict(orientation="v", x=1.02, y=1, xanchor="left", font=dict(size=11), groupclick="togglegroup"),
