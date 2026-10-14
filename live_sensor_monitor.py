@@ -127,7 +127,7 @@ def get_influx():
 
 
 def fetch_sensor(client, minutes):
-    q = (f"SELECT time, {','.join(CUR + PK)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
+    q = (f"SELECT time, {','.join(CUR + PK)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=1 "
          f"AND time > now() - INTERVAL '{minutes} minutes' ORDER BY time ASC")
     try:
         df = client.query(q, language="sql").to_pandas()
@@ -149,7 +149,7 @@ def fetch_sensor(client, minutes):
 
 
 def fetch_status(client, minutes):
-    q = (f"SELECT time, run_status FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=2 "
+    q = (f"SELECT time, run_status FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=1 "
          f"AND time > now() - INTERVAL '{minutes} minutes' ORDER BY time ASC")
     try:
         df = client.query(q, language="sql").to_pandas()
@@ -169,7 +169,7 @@ def today_summary(_client):
     out = {"failures": 0, "last": None, "stoppages": 0, "parts": 0}
     try:
         sta = _client.query(
-            f"SELECT time, run_status, part_count FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=2 "
+            f"SELECT time, run_status, part_count FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=1 "
             f"AND time > now() - INTERVAL '{mins} minutes' ORDER BY time ASC", language="sql").to_pandas()
     except Exception:
         return out
@@ -186,7 +186,7 @@ def today_summary(_client):
         b = (t + pd.Timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
         try:
             w = _client.query(
-                f"SELECT time,{','.join(CUR)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
+                f"SELECT time,{','.join(CUR)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=1 "
                 f"AND time > TIMESTAMP '{a}' AND time < TIMESTAMP '{b}' ORDER BY time ASC",
                 language="sql").to_pandas()
         except Exception:
@@ -205,7 +205,7 @@ def cycle_profile(_client, s_iso, e_iso, N=90):
     """Normalized (0-100% of cycle), smoothed current + vibration profiles for one cycle."""
     try:
         d = _client.query(
-            f"SELECT time,{','.join(CUR + PK)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
+            f"SELECT time,{','.join(CUR + PK)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=1 "
             f"AND time > TIMESTAMP '{s_iso}' AND time < TIMESTAMP '{e_iso}' ORDER BY time ASC",
             language="sql").to_pandas()
     except Exception:
@@ -233,7 +233,7 @@ def worm_data(_client, days=1, cap=80):
         mins = int(days) * 1440 + 2
     try:
         sta = _client.query(
-            f"SELECT time, run_status, part_count FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=2 "
+            f"SELECT time, run_status, part_count FROM telemetry_raw WHERE device_id='DOO4730' AND tenant_id=1 "
             f"AND time > now() - INTERVAL '{mins} minutes' ORDER BY time ASC", language="sql").to_pandas()
     except Exception:
         return None
@@ -253,7 +253,7 @@ def worm_data(_client, days=1, cap=80):
         b = (tt + pd.Timedelta(seconds=30)).strftime("%Y-%m-%d %H:%M:%S")
         try:
             wv = _client.query(
-                f"SELECT time,{','.join(CUR + PK)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=2 "
+                f"SELECT time,{','.join(CUR + PK)} FROM sensor_telemetry WHERE device_id='DOO4730' AND tenant_id=1 "
                 f"AND time > TIMESTAMP '{a}' AND time < TIMESTAMP '{b}' ORDER BY time ASC", language="sql").to_pandas()
         except Exception:
             continue
