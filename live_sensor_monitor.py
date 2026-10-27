@@ -242,7 +242,16 @@ def worm_data(_client, days=1, cap=80):
     sta["time"] = pd.to_datetime(sta["time"]).dt.tz_localize(None)
     inc = sta[sta["part_count"].notna()]
     inc = inc[inc["part_count"].diff().fillna(1) > 0]["time"].tolist()
-    cyc = [(inc[i - 1], inc[i]) for i in range(1, len(inc)) if 250 <= (inc[i] - inc[i - 1]).total_seconds() <= 900]
+    # Dynamically derive the "real cycle" duration window from the data itself instead of a
+    # fixed range -- adapts automatically when the job/part mix changes cycle length.
+    raw_durs = [(inc[i] - inc[i - 1]).total_seconds() for i in range(1, len(inc))]
+    sane = [x for x in raw_durs if 5 <= x <= 3600]  # drop dupes/near-zero and multi-hour stoppage gaps
+    if len(sane) >= 5:
+        med0 = float(np.median(sane))
+        lo, hi = max(10.0, med0 * 0.4), med0 * 2.5
+    else:
+        lo, hi = 30.0, 1800.0  # not enough history yet to calibrate; generic sanity range
+    cyc = [(inc[i - 1], inc[i]) for i in range(1, len(inc)) if lo <= (inc[i] - inc[i - 1]).total_seconds() <= hi]
     durs = [(e - s).total_seconds() for s, e in cyc]
     mdur = float(np.median(durs)) if durs else 431.0
     # failures = a stoppage confirmed by a nearby surge (cap recent to bound query volume)
